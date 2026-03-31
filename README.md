@@ -6,7 +6,7 @@ A genetic algorithm that evolves keyboard layouts to minimize finger movement, w
 
 ## What is Lak?
 
-Lak is a keyboard layout designed entirely by this algorithm. Its name comes from the letters on the top-left keys of the layout (L, A, K), similar to how QWERTY gets its name.
+Lak is a keyboard layout designed entirely by this algorithm. Its name follows the same naming convention as Dvorak and Colemak — named after their creators. Lak combines the creator's last name, **Lang**, with the **"ak"** suffix shared by both Dvorak and Colemak.
 
 The goal was simple: find a layout where your fingers travel as little as possible when typing real English text. The algorithm compared thousands of keyboard arrangements and gradually evolved them toward that goal, the same way nature evolves organisms over generations.
 
