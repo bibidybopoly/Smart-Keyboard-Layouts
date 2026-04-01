@@ -1,15 +1,31 @@
+# generate_fitness.py
+# Scores each keyboard layout by simulating typing a sample of English text on it.
+#
+# The fitness score represents the total distance all fingers travel while typing the
+# sample text. A lower score means less movement — and therefore a better layout.
+#
+# The keyboard is modelled as a 2D coordinate grid. Each key has an (x, y) position,
+# and each finger has a current position that updates as it moves between keys.
+# When a finger moves to a key, the Euclidean distance travelled is added to the score.
+#
+# Outer fingers (pinky and ring) are penalised more than inner fingers via out_factor,
+# since using them frequently is considered less ergonomic. Hand alternation is also
+# tracked: staying on the same hand too long adds a small penalty.
+
 import math
 from pathlib import Path
 import file_manager as manager
 
-# LIBRARY_PATH points to library.txt in the same folder as this script.
-LIBRARY_PATH = Path(__file__).parent / "library.txt"
+# SAMPLE_TEXT_PATH points to sample_text.txt in the same folder as this script.
+SAMPLE_TEXT_PATH = Path(__file__).parent / "sample_text.txt"
 
-with open(LIBRARY_PATH, 'r') as file:
+# Load the sample text once at startup so it doesn't need to be re-read every generation.
+with open(SAMPLE_TEXT_PATH, 'r') as file:
     data = file.read()
 text = data.strip()
 
-
+# Current [x, y] position of each finger on the keyboard grid.
+# Named: l = left, r = right; p = pinky, r = ring, m = middle, i = index.
 lp_pos = [0, 0]
 lr_pos = [0, 0]
 lm_pos = [0, 0]
@@ -19,13 +35,20 @@ rm_pos = [0, 0]
 rr_pos = [0, 0]
 rp_pos = [0, 0]
 
-fitness = 0
+fitness = 0          # Accumulated travel distance for the current keyboard being scored.
+out_factor = 1.1     # Penalty multiplier applied to outer finger (pinky/ring) movements.
+hand = ""            # Tracks which hand typed the last character ("l" or "r").
+alternate_factor = 1 # Penalty added when the same hand is used consecutively.
 
-out_factor = 1.1
-hand = ""
-alternate_factor = 1
 
 def adjust(x, pos):
+    """
+    Simulates the natural tendency of fingers to drift back toward rest position.
+
+    When one finger moves by distance x, all other fingers on the same hand shift
+    slightly back toward [0, 0] by the same distance (minus what they can cover).
+    This models how real fingers pull each other when one extends far from the home row.
+    """
     if x >= math.sqrt(pos[0]**2 + pos[1]**2):
         pos = [0, 0]
     else:
@@ -34,19 +57,28 @@ def adjust(x, pos):
 
     return pos
 
+
 def lshift():
+    """Simulates pressing Left Shift with the left pinky."""
     global fitness, lp_pos
     dx = math.sqrt((-1 - lp_pos[0])**2 + (-1 - lp_pos[1])**2)
     lp_pos = [-0.5, -1]
     fitness += dx*out_factor
 
+
 def rshift():
+    """Simulates pressing Right Shift with the right pinky."""
     global fitness, rp_pos
     dx = math.sqrt((3 - rp_pos[0])**2 + (-1 - rp_pos[1])**2)
     rp_pos = [1.5, -1]
     fitness += dx*out_factor
 
+
 def alternate(x):
+    """
+    Tracks which hand was last used. If the same hand types two characters in a row,
+    a small penalty is added to the fitness score to discourage single-hand sequences.
+    """
     global hand, fitness
     if x == hand:
         fitness += alternate_factor
@@ -54,6 +86,11 @@ def alternate(x):
         hand = x
 
 def lp_hit(x, y):
+    """
+    Moves the left pinky to key at position (x, y) and adds the travel distance
+    to the fitness score. Also adjusts all other fingers slightly toward rest.
+    The outer finger penalty (out_factor) is applied since the pinky is an outer finger.
+    """
     global fitness, lp_pos, lr_pos, lm_pos, li_pos, ri_pos, rm_pos, rr_pos, rp_pos
     dx = math.sqrt((x - lp_pos[0])**2 + (y - lp_pos[1])**2)
     lp_pos = [x, y]
@@ -68,6 +105,7 @@ def lp_hit(x, y):
     rp_pos = adjust(dx, rp_pos)
 
 def lr_hit(x, y):
+    """Moves the left ring finger to (x, y). Applies outer finger penalty."""
     global fitness, lp_pos, lr_pos, lm_pos, li_pos, ri_pos, rm_pos, rr_pos, rp_pos
     dx = math.sqrt((x - lr_pos[0])**2 + (y - lr_pos[1])**2)
     lr_pos = [x, y]
@@ -82,6 +120,7 @@ def lr_hit(x, y):
     rp_pos = adjust(dx, rp_pos)
 
 def lm_hit(x, y):
+    """Moves the left middle finger to (x, y). No outer finger penalty."""
     global fitness, lp_pos, lr_pos, lm_pos, li_pos, ri_pos, rm_pos, rr_pos, rp_pos
     dx = math.sqrt((x - lm_pos[0])**2 + (y - lm_pos[1])**2)
     lm_pos = [x, y]
@@ -96,6 +135,7 @@ def lm_hit(x, y):
     rp_pos = adjust(dx, rp_pos)
 
 def li_hit(x, y):
+    """Moves the left index finger to (x, y). No outer finger penalty."""
     global fitness, lp_pos, lr_pos, lm_pos, li_pos, ri_pos, rm_pos, rr_pos, rp_pos
     dx = math.sqrt((x - li_pos[0])**2 + (y - li_pos[1])**2)
     li_pos = [x, y]
@@ -110,6 +150,7 @@ def li_hit(x, y):
     rp_pos = adjust(dx, rp_pos)
 
 def ri_hit(x, y):
+    """Moves the right index finger to (x, y). No outer finger penalty."""
     global fitness, lp_pos, lr_pos, lm_pos, li_pos, ri_pos, rm_pos, rr_pos, rp_pos
     dx = math.sqrt((x - ri_pos[0])**2 + (y - ri_pos[1])**2)
     ri_pos = [x, y]
@@ -124,6 +165,7 @@ def ri_hit(x, y):
     rp_pos = adjust(dx, rp_pos)
 
 def rm_hit(x, y):
+    """Moves the right middle finger to (x, y). No outer finger penalty."""
     global fitness, lp_pos, lr_pos, lm_pos, li_pos, ri_pos, rm_pos, rr_pos, rp_pos
     dx = math.sqrt((x - rm_pos[0])**2 + (y - rm_pos[1])**2)
     rm_pos = [x, y]
@@ -138,6 +180,7 @@ def rm_hit(x, y):
     rp_pos = adjust(dx, rp_pos)
 
 def rr_hit(x, y):
+    """Moves the right ring finger to (x, y). Applies outer finger penalty."""
     global fitness, lp_pos, lr_pos, lm_pos, li_pos, ri_pos, rm_pos, rr_pos, rp_pos
     dx = math.sqrt((x - rr_pos[0])**2 + (y - rr_pos[1])**2)
     rr_pos = [x, y]
@@ -152,8 +195,9 @@ def rr_hit(x, y):
     rp_pos = adjust(dx, rp_pos)
 
 def rp_hit(x, y):
+    """Moves the right pinky to (x, y). Applies outer finger penalty."""
     global fitness, lp_pos, lr_pos, lm_pos, li_pos, ri_pos, rm_pos, rr_pos, rp_pos
-    dx = math.sqrt((x - lp_pos[0])**2 + (y - rp_pos[1])**2)
+    dx = math.sqrt((x - rp_pos[0])**2 + (y - rp_pos[1])**2)
     rp_pos = [x, y]
     fitness += dx*out_factor
 
@@ -167,11 +211,31 @@ def rp_hit(x, y):
 
 
 def generate_fitness(keybs):
+    """
+    Scores every keyboard in the given dictionary by simulating typing the sample text.
+
+    For each keyboard, this function:
+      1. Extracts every key's assigned character(s) from the layout dictionary.
+      2. Iterates through every character in the sample text.
+      3. Calls the appropriate finger hit function for whichever key produces that character.
+      4. Accumulates the total finger travel distance as the fitness score.
+      5. Stores the final score back into the keyboard entry and logs it to disk.
+
+    A lower score is better — it means less finger movement to type the same text.
+
+    Returns a copy of the keyboard dictionary with updated fitness scores.
+    """
     global fitness, text
     keyboards = {}
     for keyb in keybs:
         board = keybs[keyb]
         fitness = 0
+
+        # --- Extract the character(s) assigned to each key position ---
+        # Each entry is [lowercase_char, uppercase_char] from the layout.
+        # Keys are grouped by which physical finger presses them on a standard keyboard.
+
+        # Left pinky keys
         lp1 = [board[1]["row_1"]["`"][0], board[1]["row_1"]["`"][1]]
         lp2 = [board[1]["row_1"]["1"][0], board[1]["row_1"]["1"][1]]
         lp3 = [board[1]["row_2"]["q"][0], board[1]["row_2"]["q"][1]]
@@ -227,6 +291,9 @@ def generate_fitness(keybs):
         rp9 = [board[1]["row_2"]["]"][0], board[1]["row_2"]["]"][1]]
         rp10 = [board[1]["row_2"]["\\"][0], board[1]["row_2"]["\\"][1]]
 
+        # --- Simulate typing the sample text ---
+        # For each character, find which key produces it and call that finger's hit function.
+        # Uppercase characters require a shift key press on the opposite hand.
         for char in text:
             if char == lp1[0]:
                 alternate("l")
@@ -565,6 +632,7 @@ def generate_fitness(keybs):
                 rp_hit(2.75, 1)
                 lshift()
         
+        # Round the score and store it back into the board entry, then log it.
         fitness = round(fitness)
         board[0] = fitness
         print(fitness)
@@ -574,6 +642,12 @@ def generate_fitness(keybs):
     return keyboards
 
 def get_max(gen):
+    """
+    Finds the best (lowest) fitness score in the current generation.
+
+    Sorts all scores, then logs the best one, checks for an all-time high score,
+    and updates the saved top keyboards list. Returns the best score.
+    """
     list = []
     for keyb in gen:
         list.append(gen[keyb][0])
@@ -582,13 +656,19 @@ def get_max(gen):
     manager.update_high(gen, list[0])
     manager.update_top_keybs(gen, list)
     return list[0]
-    
+
 
 def get_average(gen):
+    """
+    Calculates the average fitness score across all 25 keyboards in the generation.
+
+    Logs the result to disk and returns it. Used to track whether the population
+    is improving over time.
+    """
     total = 0
     for keyb in gen:
         total += gen[keyb][0]
-    
+
     average = round(total / 25)
     manager.appendaverage(average)
     return average

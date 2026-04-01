@@ -1,3 +1,15 @@
+# file_manager.py
+# Handles all reading from and writing to disk.
+#
+# This is the backbone of the algorithm's persistence layer. Every time a generation
+# is scored, mutated, or saved, this module is responsible for updating the .klc files
+# and the CSV data logs. It also manages loading generations back from disk on startup.
+#
+# .klc files are Windows Keyboard Layout Creator files. The algorithm uses them as its
+# native storage format for keyboard layouts because they contain all key mappings in a
+# structured, human-readable format and can be installed directly on Windows to try a
+# layout for real.
+
 from pathlib import Path
 import populate as pop
 import os
@@ -8,13 +20,15 @@ import initialize as initial
 # no matter where this project is saved on any computer.
 BASE_DIR = Path(__file__).parent.parent
 
-CSV_ALL_KEYBOARDS = BASE_DIR / "CSVs" / "Keyboard_All_Keyboards_CSV.txt"
-CSV_ALL_GENS      = BASE_DIR / "CSVs" / "Keyboard_All_Gens_CSV.txt"
-CSV_HIGH_SCORES   = BASE_DIR / "CSVs" / "Keyboard_High_Scores_CSV.txt"
-GENERATIONS_DIR   = BASE_DIR / "Generations"
-TOP_KEYBOARDS_DIR = BASE_DIR / "Top_Keyboards"
+CSV_ALL_KEYBOARDS = BASE_DIR / "data" / "Keyboard_All_Keyboards_CSV.txt"
+CSV_ALL_GENS      = BASE_DIR / "data" / "Keyboard_All_Gens_CSV.txt"
+CSV_HIGH_SCORES   = BASE_DIR / "data" / "Keyboard_High_Scores_CSV.txt"
+GENERATIONS_DIR   = BASE_DIR / "generations"
+TOP_KEYBOARDS_DIR = BASE_DIR / "top_keyboards"
 
-keyname_key = { # TODO Fix
+# Maps each typeable character to its Unicode name and hex code.
+# Used when writing .klc files, which require Unicode names rather than raw characters.
+keyname_key = {
     "`":["GRAVE ACCENT", "0060"], "~":["TILDE", "007e"], "1":["DIGIT ONE", "1"], "!":["EXCLAMATION MARK", "0021"], "2":["DIGIT TWO", "2"], "@":["COMMERCIAL AT", "0040"], "3":["DIGIT THREE", "3"], "#":["NUMBER SIGN", "0023"], "4":["DIGIT FOUR", "4"], "$":["DOLLAR SIGN", "0024"], "5":["DIGIT FIVE", "5"], "%":["PERCENT SIGN", "0025"], "6":["DIGIT SIX", "6"], "^":["CIRCUMFLEX ACCENT", "005e"], "7":["DIGIT SEVEN", "7"], "&":["AMPERSAND", "0026"], "8":["DIGIT EIGHT", "8"], "*":["ASTERISK", "002a"], "9":["DIGIT NINE", "9"], "(":["LEFT PARENTHESIS", "0028"], "0":["DIGIT ZERO", "0"], ")":["RIGHT PARENTHESIS", "0029"], "-":["HYPHEN-MINUS", "002d"], "_":["LOW LINE", "005f"], "=":["EQUALS SIGN", "003d"], "+":["PLUS SIGN", "002b"],
     "q":["LATIN SMALL LETTER Q", "q"], "Q":["LATIN CAPITAL LETTER Q", "Q"], "w":["LATIN SMALL LETTER W", "w"], "W":["LATIN CAPITAL LETTER W", "W"], "e":["LATIN SMALL LETTER E", "e"], "E":["LATIN CAPITAL LETTER E", "E"], "r":["LATIN SMALL LETTER R", "r"], "R":["LATIN CAPITAL LETTER R", "R"], "t":["LATIN SMALL LETTER T", "t"], "T":["LATIN CAPITAL LETTER T", "T"], "y":["LATIN SMALL LETTER Y", "y"], "Y":["LATIN CAPITAL LETTER Y", "Y"], "u":["LATIN SMALL LETTER U", "u"], "U":["LATIN CAPITAL LETTER U", "U"], "i":["LATIN SMALL LETTER I", "i"], "I":["LATIN CAPITAL LETTER I", "I"], "o":["LATIN SMALL LETTER O", "o"], "O":["LATIN CAPITAL LETTER O", "O"], "p":["LATIN SMALL LETTER P", "p"], "P":["LATIN CAPITAL LETTER P", "P"], "[":["LEFT SQUARE BRACKET", "005b"], "{":["LEFT CURLY BRACKET", "007b"], "]":["RIGHT SQUARE BRACKET", "005d"], "}":["RIGHT CURLY BRACKET", "007d"], "\\":["REVERSE SOLIDUS", "005c"], "|":["VERTICAL LINE", "007c"],
     "a":["LATIN SMALL LETTER A", "a"], "A":["LATIN CAPITAL LETTER A", "A"], "s":["LATIN SMALL LETTER S", "s"], "S":["LATIN CAPITAL LETTER S", "S"], "d":["LATIN SMALL LETTER D", "d"], "D":["LATIN CAPITAL LETTER D", "D"], "f":["LATIN SMALL LETTER F", "f"], "F":["LATIN CAPITAL LETTER F", "F"], "g":["LATIN SMALL LETTER G", "g"], "G":["LATIN CAPITAL LETTER G", "G"], "h":["LATIN SMALL LETTER H", "h"], "H":["LATIN CAPITAL LETTER H", "H"], "j":["LATIN SMALL LETTER J", "j"], "J":["LATIN CAPITAL LETTER J", "J"], "k":["LATIN SMALL LETTER K", "k"], "K":["LATIN CAPITAL LETTER K", "K"], "l":["LATIN SMALL LETTER L", "l"], "L":["LATIN CAPITAL LETTER L", "L"], ";":["SEMICOLON", "003b"], ":":["COLON", "003a"], "'":["APOSTROPHE", "0027"], "\"":["QUOTATION MARK", "0022"],
@@ -22,6 +36,16 @@ keyname_key = { # TODO Fix
     }
 
 def gen_name(keyb):
+    """
+    Generates a unique name for a keyboard layout based on its top-row keys,
+    following the same convention as QWERTY (named after its Q-W-E-R-T-Y row).
+
+    Forbidden characters (symbols that are invalid in filenames) are skipped.
+    If the generated name already exists, a numeric suffix (_1, _2, etc.) is added.
+    The name is also registered in the all-keyboards CSV log.
+
+    Returns the keyboard's name as a string.
+    """
     with open(CSV_ALL_KEYBOARDS, 'r') as file:
         data = file.read()
     lines = []
@@ -31,7 +55,7 @@ def gen_name(keyb):
             lines.append(line)
             line = ""
         else:
-            line += char
+            line += chara
 
     names = []
     for line in lines:
@@ -84,6 +108,10 @@ def gen_name(keyb):
     return keybname
 
 def get_index():
+    """
+    Returns the current generation number by reading the last entry in the
+    all-generations CSV. Returns 0 if no generations have been run yet.
+    """
     with open(CSV_ALL_GENS, 'r') as file:
         data = file.read()
     lines = []
@@ -108,6 +136,10 @@ def get_index():
     return gen[3::]
 
 def appendmax(max):
+    """
+    Writes the best (lowest) fitness score of the current generation into the
+    all-generations CSV. Called after all keyboards in a generation are scored.
+    """
     with open(CSV_ALL_GENS, 'r') as file:
         data = file.read()
     lines = []
@@ -127,6 +159,10 @@ def appendmax(max):
             file.write(line + "\n")
 
 def appendaverage(average):
+    """
+    Writes the average fitness score of the current generation into the
+    all-generations CSV alongside the best score already recorded there.
+    """
     with open(CSV_ALL_GENS, 'r') as file:
         data = file.read()
     lines = []
@@ -156,6 +192,11 @@ def appendaverage(average):
             file.write(line + "\n")
 
 def appendscores(keyb, fitness):
+    """
+    Records a keyboard's fitness score in two places:
+      1. The all-keyboards CSV (updates the placeholder '-' with the real score).
+      2. The keyboard's own .klc file (stored in the COMPANY field for easy reading).
+    """
     with open(CSV_ALL_KEYBOARDS, 'r') as file:
         data = file.read()
     lines = []
@@ -202,6 +243,11 @@ def appendscores(keyb, fitness):
 
 
 def update_high(gen, high):
+    """
+    Checks if the best score from the current generation is an all-time record.
+    If so, appends the new record to the high-scores CSV along with the generation
+    number and the name of the keyboard that achieved it.
+    """
     with open(CSV_HIGH_SCORES, 'r') as file:
         data = file.read()
     lines = []
@@ -240,6 +286,13 @@ def update_high(gen, high):
                 file.write(line + "\n")
 
 def update_top_keybs(gen, list):
+    """
+    Maintains the all-time top 5 best keyboard layouts in the top_keyboards/ folder.
+
+    Combines the scores from the current generation with the existing top keyboards,
+    keeps only the 5 lowest scores, removes any .klc files that no longer qualify,
+    and writes new .klc files for any keyboards that have earned a spot.
+    """
     topfitnesses = []
     topgen = pop.pop_top_kb()
     for topkeyb in topgen:
@@ -584,6 +637,15 @@ ENDKBD
                 removenum -= 1 
         
 def get_gen():
+    """
+    Loads the most recent generation of keyboards from the generations/ folder.
+
+    Finds the highest-numbered generation subfolder, reads every .klc file inside it,
+    and returns the raw lines of each file as a list of lists.
+
+    If no generations exist yet (fresh start), automatically calls initialize.gen1()
+    to create the first generation, then loads it.
+    """
     gen = []
     files = []
     for genfile in GENERATIONS_DIR.iterdir():
@@ -624,6 +686,10 @@ def get_gen():
         return gen
 
 def get_top_keybs():
+    """
+    Loads all keyboard .klc files from the top_keyboards/ folder and returns
+    their raw lines as a list of lists — same format as get_gen().
+    """
     gen = []
     files = []
     for file in Path(TOP_KEYBOARDS_DIR).iterdir():
@@ -645,6 +711,16 @@ def get_top_keybs():
     return gen
 
 def new_gen(gen):
+    """
+    Saves a new generation to disk.
+
+    Creates a new subfolder inside generations/ (e.g. Gen42/), writes every keyboard
+    in the generation as a .klc file inside it, and appends a placeholder entry to
+    the all-generations CSV which will be filled in with scores once evaluated.
+
+    The .klc file format is the standard Windows Keyboard Layout Creator format,
+    which means any layout saved here can be installed and used on Windows directly.
+    """
     gen_name = f"Gen{int(get_index()) + 1}"
     path = GENERATIONS_DIR / gen_name
     os.mkdir(path)
@@ -917,6 +993,12 @@ ENDKBD
             file.write(file_contents)
 
 def cleanup():
+    """
+    Called when the user interrupts the algorithm (Ctrl+C) mid-generation.
+
+    Resets the last CSV entry so the incomplete generation is not counted,
+    keeping the data log consistent for the next run.
+    """
     with open(CSV_ALL_GENS, 'r') as file:
         data = file.read()
     lines = []
@@ -935,6 +1017,14 @@ def cleanup():
             file.write(line + "\n")
 
 def trash():
+    """
+    Deletes old generation folders to prevent the generations/ folder from growing
+    indefinitely over hundreds of runs.
+
+    Keeps Gen1 (the original baseline) and the current generation. Everything
+    in between is deleted. This is safe because the algorithm only ever needs
+    the most recent generation to continue evolving.
+    """
     files = []
     for file in GENERATIONS_DIR.iterdir():
         files.append(file)

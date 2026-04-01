@@ -1,8 +1,19 @@
+# mutate.py
+# Responsible for producing each new generation of keyboards from the previous one.
+#
+# There are four mutation strategies, each representing a different way to modify
+# a keyboard layout. The algorithm randomly picks one per keyboard each generation.
+
 import populate as pop
 import random as rand
 import file_manager as manager
 
+
 def top5(gen):
+    """
+    Returns the 5 best-scoring keyboards from the given generation.
+    Lower scores are better (less finger travel distance).
+    """
     top5 = {}
     list= []
     for keyb in gen:
@@ -25,27 +36,41 @@ def top5(gen):
 
     return top5
 
+
 def correct(keyb):
+    """
+    Enforces layout rules on a keyboard after it has been randomized or mutated.
+
+    The rules ensure the layout stays valid and sensible:
+      - Bracket pairs (e.g. [ and ]) must stay on adjacent keys.
+      - Letters must occupy the lowercase slot of their key.
+      - Special characters like ' and ; are shuffled but kept together as pairs.
+
+    This prevents the algorithm from evolving layouts that would be physically
+    confusing or impossible to use correctly.
+    """
     rows = ["row_1", "row_2", "row_3", "row_4"]
     row1 = ["`", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "="]
     row2 = ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p", "[", "]", "\\"]
     row3 = ["a", "s", "d", "f", "g", "h", "j", "k", "l", ";", "'"]
     row4 = ["z", "x", "c", "v", "b", "n", "m", ",", ".", "/"]
     rowkeys = [row1, row2, row3, row4]
-    
 
+    # Keys that opening brackets are not allowed to be placed on.
     leftlockkeys = [
         ["row_1", "`", 0], ["row_1", "1", 0], ["row_1", "2", 0], ["row_1", "3", 0], ["row_1", "4", 0], ["row_1", "5", 0], ["row_1", "6", 0], ["row_1", "7", 0], ["row_1", "8", 0], ["row_1", "9", 0], ["row_1", "0", 0], ["row_1", "=", 0], ["row_1", "=", 1],
         ["row_2", "\\", 0], ["row_2", "\\", 1],
         ["row_3", "'", 0], ["row_3", "'", 1],
         ["row_4", "/", 0], ["row_4", "/", 1],
         ]
-    
+
+    # Keys that number symbols are not allowed to be placed on.
     toplockkeys = [
         ["row_1", "1", 1], ["row_1", "2", 1], ["row_1", "3", 1], ["row_1", "4", 1], ["row_1", "5", 1], ["row_1", "6", 1], ["row_1", "7", 1], ["row_1", "8", 1], ["row_1", "9", 1], ["row_1", "0", 1],
         ["row_1", "1", 0], ["row_1", "2", 0], ["row_1", "3", 0], ["row_1", "4", 0], ["row_1", "5", 0], ["row_1", "6", 0], ["row_1", "7", 0], ["row_1", "8", 0], ["row_1", "9", 0], ["row_1", "0", 0]
     ]
 
+    # Keys that letters are not allowed to be placed on.
     letterlockkeys = [
         ["row_1", "1", 0], ["row_1", "2", 0], ["row_1", "3", 0], ["row_1", "4", 0], ["row_1", "5", 0], ["row_1", "6", 0], ["row_1", "7", 0], ["row_1", "8", 0], ["row_1", "9", 0], ["row_1", "0", 0]
     ]
@@ -56,9 +81,7 @@ def correct(keyb):
     leftspos = {}
     new_leftspos = {}
 
-    
-
-
+    # Ensure each opening bracket is placed to the left of its closing bracket.
     for right, leftchar in enumerate(leftchars):
         for rownum, row in enumerate(rows):
             for charnum, char in enumerate(rowkeys[rownum]):
@@ -104,12 +127,14 @@ def correct(keyb):
                         letterlockkeys.append([row, char, 0])
                         letterlockkeys.append([row, rowkeys[rownum][charnum + 1], 0])
 
+    # All 26 letters mapped to their lowercase/uppercase pair.
     letters = {
         "q":["q", "Q"], "w":["w", "W"], "e":["e", "E"], "r":["r", "R"], "t":["t", "T"], "y":["y", "Y"], "u":["u", "U"], "i":["i", "I"], "o":["o", "O"], "p":["p", "P"],
-        "a":["a", "A"], "s":["s", "S"], "d":["d", "D"], "f":["f", "F"], "g":["g", "G"], "h":["h", "H"], "j":["j", "J"], "k":["k", "K"], "l":["l", "L"], 
+        "a":["a", "A"], "s":["s", "S"], "d":["d", "D"], "f":["f", "F"], "g":["g", "G"], "h":["h", "H"], "j":["j", "J"], "k":["k", "K"], "l":["l", "L"],
         "z":["z", "Z"], "x":["x", "X"], "c":["c", "C"], "v":["v", "V"], "b":["b", "B"], "n":["n", "N"], "m":["m", "M"]
-        }  
+        }
 
+    # Place each letter in the lowercase slot of a valid key position.
     for letter in letters:
 
         for rownum, row in enumerate(rows):
@@ -143,7 +168,8 @@ def correct(keyb):
                     toplockkeys.append([row, char, 0])
                     toplockkeys.append([row, char, 1])
                     letterlockkeys.append([row, char, 0])
-                    
+
+    # Special character pairs (' ") and (; :) are shuffled but kept together.
     specchars = {"'":["'", "\""], ";":[";", ":"]}
 
     for speccharset in specchars:
@@ -182,12 +208,21 @@ def correct(keyb):
                         toplockkeys.append([row, char, i])
                         toplockkeys.append([row, char, abs(i-1)])
 
+    # Assign the keyboard a name based on its top-row characters and return it.
     keyb = {manager.gen_name(keyb): keyb}
     return keyb
 
+
 def gen_rand():
+    """
+    Generates a completely random keyboard layout by shuffling all characters
+    and assigning them to key positions.
+
+    Returns the keyboard as an uncorrected [name, layout] list.
+    Call correct() on the result before using it in the algorithm.
+    """
     char_list = [
-        "`", "~", "!", "@", "#", "$", "%", "^", "&", "*", "(", ")", "-", "_", "=", "+", 
+        "`", "~", "!", "@", "#", "$", "%", "^", "&", "*", "(", ")", "-", "_", "=", "+",
         "q", "Q", "w", "W", "e", "E", "r", "R", "t", "T", "y", "Y", "u", "U", "i", "I", "o", "O", "p", "P", "[", "{", "]", "}", "\\", "|",
         "a", "A", "s", "S", "d", "D", "f", "F", "g", "G", "h", "H", "j", "J", "k", "K", "l", "L", ";", ":", "'", "\"",
         "z", "Z", "x", "X", "c", "C", "v", "V", "b", "B", "n", "N", "m", "M", ",", "<", ".", ">", "/", "?"
@@ -291,7 +326,15 @@ def gen_rand():
 
     return keyb
 
+
 def mutation1(keyb1, keyb2):
+    """
+    Crossover mutation: replaces the left half of keyb1 with the left half of keyb2.
+
+    This simulates biological crossover, where two parents produce an offspring
+    that inherits traits from both. Any duplicate characters introduced by the
+    crossover are resolved by substituting in the missing characters.
+    """
     rows = ("row_1","row_2","row_3","row_4")
     lrow1 = ["`", "1", "2", "3", "4", "5"]
     lrow2 = ["q", "w", "e", "r", "t"]
@@ -306,11 +349,13 @@ def mutation1(keyb1, keyb2):
         "z","Z","x","X","c","C","v","V","b","B","n","N","m","M",",","<",".",">","/","?"
         ]
 
+    # Copy the left-hand keys from keyb2 into keyb1.
     for i, row in enumerate(rows):
         for char in lrowkeys[i]:
             keyb1[1][row][char][0] = keyb2[1][row][char][0]
             keyb1[1][row][char][1] = keyb2[1][row][char][1]
 
+    # Find any characters that now appear twice due to the crossover.
     keybkeys = []
     for row in keyb1[1]:
         for char in keyb1[1][row]:
@@ -323,11 +368,13 @@ def mutation1(keyb1, keyb2):
             if not char in dupechars:
                 dupechars.append(char)
 
+    # Find any characters that are now missing from the layout.
     missingkeys = []
     for key in copykeys:
         if not key in keybkeys:
             missingkeys.append(key)
 
+    # Replace each duplicate on the right side with a missing character.
     rrow1 = ("6", "7", "8", "9", "0", "-", "=")
     rrow2 = ("y", "u", "i", "o", "p", "[", "]", "\\")
     rrow3 = ("h", "j", "k", "l", ";", "'")
@@ -344,7 +391,14 @@ def mutation1(keyb1, keyb2):
 
     return keyb1
 
+
 def mutation2(keyb):
+    """
+    Swap mutation: randomly swaps two individual characters anywhere on the keyboard.
+
+    This is the smallest possible change — a single character exchange.
+    It allows the algorithm to make fine-grained adjustments to a layout.
+    """
     rows = ["row_1", "row_2", "row_3", "row_4"]
     row1 = ["`", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "="]
     row2 = ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p", "[", "]", "\\"]
@@ -365,16 +419,16 @@ def mutation2(keyb):
     randkey1 = rowkeys[rowi1][rand.randint(0, (len(rowkeys[rowi1])-1))]
     randkey2 = rowkeys[rowi2][rand.randint(0, (len(rowkeys[rowi2])-1))]
 
+    # Avoid swapping number keys in the lowercase position.
     while randkey1 in nums and case1 == 0:
         randkey1 = rowkeys[rowi1][rand.randint(0, (len(rowkeys[rowi1])-1))]
 
     while randkey2 in nums and case2 == 0:
         randkey2 = rowkeys[rowi2][rand.randint(0, (len(rowkeys[rowi2])-1))]
 
+    # Perform the swap.
     let1 = keyb[1][randrow2][randkey2][case2]
-
     let2 = keyb[1][randrow1][randkey1][case1]
-    
     keyb[1][randrow1][randkey1][case1] = let1
     keyb[1][randrow2][randkey2][case2] = let2
 
@@ -382,7 +436,14 @@ def mutation2(keyb):
 
     return keyb
 
+
 def mutation3(keyb):
+    """
+    Row swap mutation: swaps all the characters between two randomly chosen rows
+    (rows 2, 3, and 4 only — the letter rows).
+
+    This is a large-scale change that can radically reorganize a layout.
+    """
     rows = ["row_2", "row_3", "row_4"]
     row2 = ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"]
     row3 = ["a", "s", "d", "f", "g", "h", "j", "k", "l", ";"]
@@ -397,7 +458,7 @@ def mutation3(keyb):
 
         let2_low = keyb[1][rows[rand1]][rowkeys[rand1][i]][0]
         let2_up = keyb[1][rows[rand1]][rowkeys[rand1][i]][1]
-        
+
         keyb[1][rows[rand1]][rowkeys[rand1][i]][0] = let1_low
         keyb[1][rows[rand1]][rowkeys[rand1][i]][1] = let1_up
         keyb[1][rows[rand2]][rowkeys[rand2][i]][0] = let2_low
@@ -407,7 +468,16 @@ def mutation3(keyb):
 
     return keyb
 
+
 def mutation4(keyb):
+    """
+    Column swap mutation: swaps all the characters between two randomly chosen
+    vertical columns across rows 2, 3, and 4.
+
+    Columns are the vertical groupings of keys (e.g. Q/A/Z, W/S/X, etc.).
+    This keeps finger-column assignments intact while shuffling which column
+    gets which set of characters.
+    """
     rows = ["row_2", "row_3", "row_4"]
     c1 = {"row_2":"q", "row_3":"a", "row_4":"z"}
     c2 = {"row_2":"w", "row_3":"s", "row_4":"x"}
@@ -428,7 +498,7 @@ def mutation4(keyb):
         let1_up = keyb[1][row][columns[rand2][row]][1]
 
         let2_low = keyb[1][row][columns[rand1][row]][0]
-        let2_up = keyb[1][row][columns[rand1][row]][1]  
+        let2_up = keyb[1][row][columns[rand1][row]][1]
 
         keyb[1][row][columns[rand1][row]][0] = let1_low
         keyb[1][row][columns[rand1][row]][1] = let1_up
@@ -439,39 +509,49 @@ def mutation4(keyb):
 
     return keyb
 
-def mutate(gen):
-    pop_top = pop.pop_top_kb()
 
+def mutate(gen):
+    """
+    Produces the next generation of keyboards from the current one.
+
+    Combines the top 5 keyboards from the current generation with the all-time
+    top keyboards, then applies a random mutation to each. If the resulting pool
+    has fewer than 25 keyboards, random layouts are added to fill it out.
+    All keyboards are then run through correct() to ensure layout validity.
+    """
+    # Gather the best keyboards from the all-time records and the current generation.
+    pop_top = pop.pop_top_kb()
     pop_current = top5(gen)
     pop_top.update(pop_current)
     keybs = pop_top
+
     new_gen = {}
     keyb_list = []
     for keyb in keybs:
         keyb_list.append(keyb)
 
+    # Apply a random mutation to each keyboard, twice over, to fill the new generation.
     for i in range(2):
         for keyb in keybs:
             mut_num = rand.randint(1,4)
             if mut_num == 1:
-                new_gen.update({len(new_gen):mutation1(keybs[keyb], keybs[keyb_list[rand.randint(0, len(keyb_list)-1)]])})                
-
+                new_gen.update({len(new_gen):mutation1(keybs[keyb], keybs[keyb_list[rand.randint(0, len(keyb_list)-1)]])})
             elif mut_num == 2:
                 new_gen.update({len(new_gen):mutation2(keybs[keyb])})
-
             elif mut_num == 3:
                 new_gen.update({len(new_gen):mutation3(keybs[keyb])})
-
             elif mut_num == 4:
                 new_gen.update({len(new_gen):mutation4(keybs[keyb])})
 
+    # Pad with random layouts if we don't yet have 25 keyboards.
     while len(new_gen) < 25:
         new_gen.update({len(new_gen):gen_rand()})
 
+    # Run every keyboard through correct() to enforce layout rules, then reset scores.
     final_gen = {}
     for keyb in new_gen:
         final_gen.update(correct(new_gen[keyb]))
-        
+
     for keyb in final_gen:
         final_gen[keyb][0] = "-"
 

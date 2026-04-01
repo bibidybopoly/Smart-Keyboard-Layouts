@@ -10,7 +10,7 @@ Lak is a keyboard layout designed entirely by this algorithm. Its name follows t
 
 The goal was simple: find a layout where your fingers travel as little as possible when typing real English text. The algorithm compared thousands of keyboard arrangements and gradually evolved them toward that goal, the same way nature evolves organisms over generations.
 
-The finished Lak layout is included in the `OG_keybs/` folder as a `.klc` file, alongside QWERTY, Dvorak, Colemak, and an Alphabetical layout for comparison.
+The finished Lak layout is included in the `reference_layouts/` folder as a `.klc` file, alongside QWERTY, Dvorak, Colemak, and an Alphabetical layout for comparison.
 
 ---
 
@@ -20,11 +20,11 @@ The algorithm follows the classic cycle of a genetic algorithm:
 
 **1. Populate** — A generation of 25 keyboards is created. The first generation includes 21 randomly shuffled layouts plus QWERTY, Colemak, and Dvorak as a baseline. Later generations are built from the best survivors of the previous one.
 
-**2. Score (Fitness)** — Each keyboard is scored by simulating typing a large sample of English text (`library.txt`) and measuring the total distance each finger travels. A lower score is better.
+**2. Score (Fitness)** — Each keyboard is scored by simulating typing a large sample of English text (`sample_text.txt`) and measuring the total distance each finger travels. A lower score is better.
 
 **3. Mutate** — The top-performing keyboards are kept and randomly modified (keys swapped around) to produce the next generation. Weaker keyboards are discarded.
 
-This cycle repeats indefinitely. Each generation's scores and top performers are saved to the `CSVs/` folder, and every keyboard layout is saved as a `.klc` file in `Generations/`.
+This cycle repeats indefinitely. Each generation's scores and top performers are saved to the `data/` folder, and every keyboard layout is saved as a `.klc` file in `generations/`.
 
 ---
 
@@ -33,19 +33,19 @@ This cycle repeats indefinitely. Each generation's scores and top performers are
 ```
 Smart_Keyboard_layouts/
 │
-├── Ideal_Keyboard_Algorithm/   # All Python source code
+├── src/                        # All Python source code
 │   ├── main.py                 # Entry point — runs the algorithm
 │   ├── initialize.py           # Creates the first generation
 │   ├── populate.py             # Builds each new generation from survivors
 │   ├── generate_fitness.py     # Scores each keyboard layout
 │   ├── mutate.py               # Mutates keyboards to produce offspring
 │   ├── file_manager.py         # Handles all file reading and writing
-│   └── library.txt             # Sample English text used for scoring
+│   └── sample_text.txt         # Sample English text used for scoring
 │
-├── Generations/                # Keyboard layouts generated during a run
-├── OG_keybs/                   # Reference layouts (QWERTY, Dvorak, Colemak, Lak)
-├── Top_Keyboards/              # The best layouts found across all generations
-└── CSVs/                       # Data logs (scores per generation, high scores)
+├── generations/                # Keyboard layouts generated during a run
+├── reference_layouts/          # Reference layouts (QWERTY, Dvorak, Colemak, Lak)
+├── top_keyboards/              # The best layouts found across all generations
+└── data/                       # Data logs (scores per generation, high scores)
 ```
 
 ---
@@ -60,7 +60,7 @@ Smart_Keyboard_layouts/
 ## How to Run
 
 1. Clone this repository or download it as a ZIP
-2. Open a terminal and navigate to the `Ideal_Keyboard_Algorithm/` folder
+2. Open a terminal and navigate to the `src/` folder
 3. Run:
 
 ```
