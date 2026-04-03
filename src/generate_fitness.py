@@ -2,15 +2,15 @@
 # Scores each keyboard layout by simulating typing a sample of English text on it.
 #
 # The fitness score represents the total distance all fingers travel while typing the
-# sample text. A lower score means less movement — and therefore a better layout.
+# sample text. A lower score means less movement - and therefore a better layout.
 #
 # The keyboard is modelled as a 2D coordinate grid. Each key has an (x, y) position,
 # and each finger has a current position that updates as it moves between keys.
 # When a finger moves to a key, the Euclidean distance travelled is added to the score.
 #
-# Outer fingers (pinky and ring) are penalised more than inner fingers via out_factor,
-# since using them frequently is considered less ergonomic. Hand alternation is also
-# tracked: staying on the same hand too long adds a small penalty.
+# Outer fingers are penalised more than inner fingers: pinky_factor > ring_factor > 1.0.
+# This steers the algorithm toward layouts that keep common keys on stronger fingers.
+# Hand alternation is also tracked: staying on the same hand too long adds a small penalty.
 
 import math
 from pathlib import Path
@@ -36,7 +36,8 @@ rr_pos = [0, 0]
 rp_pos = [0, 0]
 
 fitness = 0          # Accumulated travel distance for the current keyboard being scored.
-out_factor = 1.1     # Penalty multiplier applied to outer finger (pinky/ring) movements.
+pinky_factor = 1.3   # Penalty multiplier for pinky fingers - highest, to discourage outer key use.
+ring_factor  = 1.1   # Penalty multiplier for ring fingers - moderate outer-finger penalty.
 hand = ""            # Tracks which hand typed the last character ("l" or "r").
 alternate_factor = 1 # Penalty added when the same hand is used consecutively.
 
@@ -48,10 +49,17 @@ def adjust(x, pos):
     When one finger moves by distance x, all other fingers on the same hand shift
     slightly back toward [0, 0] by the same distance (minus what they can cover).
     This models how real fingers pull each other when one extends far from the home row.
+
+    The distance each finger actually travels during the adjustment is added to the
+    fitness score, because returning to rest position is real finger movement.
     """
-    if x >= math.sqrt(pos[0]**2 + pos[1]**2):
+    global fitness
+    dist_to_origin = math.sqrt(pos[0]**2 + pos[1]**2)
+    if x >= dist_to_origin:
+        fitness += dist_to_origin   # Finger travels all the way back to rest.
         pos = [0, 0]
     else:
+        fitness += x                # Finger travels x units toward rest.
         pos[0] = math.copysign((abs(pos[0]) - x * math.cos(math.atan(pos[1] / pos[0]))), pos[0])
         pos[1] = math.copysign((abs(pos[1]) - x * math.sin(math.atan(pos[1] / pos[0]))), pos[1])
 
@@ -59,19 +67,19 @@ def adjust(x, pos):
 
 
 def lshift():
-    """Simulates pressing Left Shift with the left pinky."""
+    """Simulates pressing Left Shift with the left pinky. Uses pinky_factor."""
     global fitness, lp_pos
     dx = math.sqrt((-1 - lp_pos[0])**2 + (-1 - lp_pos[1])**2)
     lp_pos = [-0.5, -1]
-    fitness += dx*out_factor
+    fitness += dx*pinky_factor
 
 
 def rshift():
-    """Simulates pressing Right Shift with the right pinky."""
+    """Simulates pressing Right Shift with the right pinky. Uses pinky_factor."""
     global fitness, rp_pos
     dx = math.sqrt((3 - rp_pos[0])**2 + (-1 - rp_pos[1])**2)
     rp_pos = [1.5, -1]
-    fitness += dx*out_factor
+    fitness += dx*pinky_factor
 
 
 def alternate(x):
@@ -89,12 +97,13 @@ def lp_hit(x, y):
     """
     Moves the left pinky to key at position (x, y) and adds the travel distance
     to the fitness score. Also adjusts all other fingers slightly toward rest.
-    The outer finger penalty (out_factor) is applied since the pinky is an outer finger.
+    The pinky penalty (pinky_factor) is applied - higher than the ring factor -
+    to further discourage use of the outermost finger.
     """
     global fitness, lp_pos, lr_pos, lm_pos, li_pos, ri_pos, rm_pos, rr_pos, rp_pos
     dx = math.sqrt((x - lp_pos[0])**2 + (y - lp_pos[1])**2)
     lp_pos = [x, y]
-    fitness += dx*out_factor
+    fitness += dx*pinky_factor
 
     lr_pos = adjust(dx, lr_pos)
     lm_pos = adjust(dx, lm_pos)
@@ -105,11 +114,11 @@ def lp_hit(x, y):
     rp_pos = adjust(dx, rp_pos)
 
 def lr_hit(x, y):
-    """Moves the left ring finger to (x, y). Applies outer finger penalty."""
+    """Moves the left ring finger to (x, y). Applies ring finger penalty (ring_factor)."""
     global fitness, lp_pos, lr_pos, lm_pos, li_pos, ri_pos, rm_pos, rr_pos, rp_pos
     dx = math.sqrt((x - lr_pos[0])**2 + (y - lr_pos[1])**2)
     lr_pos = [x, y]
-    fitness += dx*out_factor
+    fitness += dx*ring_factor
 
     lp_pos = adjust(dx, lp_pos)
     lm_pos = adjust(dx, lm_pos)
@@ -180,11 +189,11 @@ def rm_hit(x, y):
     rp_pos = adjust(dx, rp_pos)
 
 def rr_hit(x, y):
-    """Moves the right ring finger to (x, y). Applies outer finger penalty."""
+    """Moves the right ring finger to (x, y). Applies ring finger penalty (ring_factor)."""
     global fitness, lp_pos, lr_pos, lm_pos, li_pos, ri_pos, rm_pos, rr_pos, rp_pos
     dx = math.sqrt((x - rr_pos[0])**2 + (y - rr_pos[1])**2)
     rr_pos = [x, y]
-    fitness += dx*out_factor
+    fitness += dx*ring_factor
 
     lr_pos = adjust(dx, lr_pos)
     lm_pos = adjust(dx, lm_pos)
@@ -195,11 +204,11 @@ def rr_hit(x, y):
     rp_pos = adjust(dx, rp_pos)
 
 def rp_hit(x, y):
-    """Moves the right pinky to (x, y). Applies outer finger penalty."""
+    """Moves the right pinky to (x, y). Applies pinky finger penalty (pinky_factor)."""
     global fitness, lp_pos, lr_pos, lm_pos, li_pos, ri_pos, rm_pos, rr_pos, rp_pos
     dx = math.sqrt((x - rp_pos[0])**2 + (y - rp_pos[1])**2)
     rp_pos = [x, y]
-    fitness += dx*out_factor
+    fitness += dx*pinky_factor
 
     lr_pos = adjust(dx, lr_pos)
     lm_pos = adjust(dx, lm_pos)
@@ -221,7 +230,7 @@ def generate_fitness(keybs):
       4. Accumulates the total finger travel distance as the fitness score.
       5. Stores the final score back into the keyboard entry and logs it to disk.
 
-    A lower score is better — it means less finger movement to type the same text.
+    A lower score is better - it means less finger movement to type the same text.
 
     Returns a copy of the keyboard dictionary with updated fitness scores.
     """

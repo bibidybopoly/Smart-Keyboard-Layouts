@@ -35,6 +35,20 @@ keyname_key = {
     "z":["LATIN SMALL LETTER Z", "z"], "Z":["LATIN CAPITAL LETTER Z", "Z"], "x":["LATIN SMALL LETTER X", "x"], "X":["LATIN CAPITAL LETTER X", "X"], "c":["LATIN SMALL LETTER C", "c"], "C":["LATIN CAPITAL LETTER C", "C"], "v":["LATIN SMALL LETTER V", "v"], "V":["LATIN CAPITAL LETTER V", "V"], "b":["LATIN SMALL LETTER B", "b"], "B":["LATIN CAPITAL LETTER B", "B"], "n":["LATIN SMALL LETTER N", "n"], "N":["LATIN CAPITAL LETTER N", "N"], "m":["LATIN SMALL LETTER M", "m"], "M":["LATIN CAPITAL LETTER M", "M"], ",":["COMMA", "002c"], "<":["LESS-THAN SIGN", "003c"], ".":["FULL STOP", "002e"], ">":["GREATER-THAN SIGN", "003e"], "/":["SOLIDUS", "002f"], "?":["QUESTION MARK", "003f"],
     }
 
+def cap_flag(char):
+    """
+    Returns the CapsLock flag value for a given character.
+
+    In the .klc file format, the Cap column controls whether CapsLock affects a key:
+      1 = CapsLock swaps lowercase/uppercase (correct for letter keys)
+      0 = CapsLock has no effect (correct for punctuation/number keys)
+
+    This must be based on the CHARACTER currently on the key, not the physical key
+    position, since the algorithm moves letters onto punctuation keys and vice versa.
+    """
+    return 1 if char.isalpha() else 0
+
+
 def gen_name(keyb):
     """
     Generates a unique name for a keyboard layout based on its top-row keys,
@@ -55,7 +69,7 @@ def gen_name(keyb):
             lines.append(line)
             line = ""
         else:
-            line += chara
+            line += char
 
     names = []
     for line in lines:
@@ -222,7 +236,7 @@ def appendscores(keyb, fitness):
         keybs.append(kb)
 
     for path in keybs:
-        if keyb == str(path)[len(genpath)+1:-4]:
+        if keyb == str(path)[len(str(genpath))+1:-4]:
             with open(path, 'r') as keybfile:
                 keybdata = keybfile.read()
             lines = []
@@ -460,43 +474,43 @@ LAYOUT		;an extra '@' at the end is a dead key
 09	8		0	{keyname_key[eight][1]}	{keyname_key[asterisk][1]}	-1		// {keyname_key[eight][0]}, {keyname_key[asterisk][0]}, <none>
 0a	9		0	{keyname_key[nine][1]}	{keyname_key[lparanthesis][1]}	-1		// {keyname_key[nine][0]}, {keyname_key[lparanthesis][0]}, <none>
 0b	0		0	{keyname_key[zero][1]}	{keyname_key[rparanthesis][1]}	-1		// {keyname_key[zero][0]}, {keyname_key[rparanthesis][0]}, <none>
-0c	OEM_MINUS	0	{keyname_key[minus][1]}	{keyname_key[underscore][1]}	-1		// {keyname_key[minus][0]}, {keyname_key[underscore][0]}, <none>
-0d	OEM_PLUS	0	{keyname_key[equals][1]}	{keyname_key[plus][1]}	-1		// {keyname_key[equals][0]}, {keyname_key[plus][0]}, <none>
-10	Q		1	{keyname_key[q][1]}	{keyname_key[Q][1]}	-1		// {keyname_key[q][0]}, {keyname_key[Q][0]}, <none>
-11	W		1	{keyname_key[w][1]}	{keyname_key[W][1]}	-1		// {keyname_key[w][0]}, {keyname_key[W][0]}, <none>
-12	E		1	{keyname_key[e][1]}	{keyname_key[E][1]}	-1		// {keyname_key[e][0]}, {keyname_key[E][0]}, <none>
-13	R		1	{keyname_key[r][1]}	{keyname_key[R][1]}	-1		// {keyname_key[r][0]}, {keyname_key[R][0]}, <none>
-14	T		1	{keyname_key[t][1]}	{keyname_key[T][1]}	-1		// {keyname_key[t][0]}, {keyname_key[T][0]}, <none>
-15	Y		1	{keyname_key[y][1]}	{keyname_key[Y][1]}	-1		// {keyname_key[y][0]}, {keyname_key[Y][0]}, <none>
-16	U		1	{keyname_key[u][1]}	{keyname_key[U][1]}	-1		// {keyname_key[u][0]}, {keyname_key[U][0]}, <none>
-17	I		1	{keyname_key[i][1]}	{keyname_key[I][1]}	-1		// {keyname_key[i][0]}, {keyname_key[I][0]}, <none>
-18	O		1	{keyname_key[o][1]}	{keyname_key[O][1]}	-1		// {keyname_key[o][0]}, {keyname_key[O][0]}, <none>
-19	P		1	{keyname_key[p][1]}	{keyname_key[P][1]}	-1		// {keyname_key[p][0]}, {keyname_key[P][0]}, <none>
-1a	OEM_4		0	{keyname_key[lsquare][1]}	{keyname_key[lcurly][1]}	-1		// {keyname_key[lsquare][0]}, {keyname_key[lcurly][0]}, <none>
-1b	OEM_6		0	{keyname_key[rsquare][1]}	{keyname_key[rcurly][1]}	-1		// {keyname_key[rsquare][0]}, {keyname_key[rcurly][0]}, <none>
-1e	A		1	{keyname_key[a][1]}	{keyname_key[A][1]}	-1		// {keyname_key[a][0]}, {keyname_key[A][0]}, <none>
-1f	S		1	{keyname_key[s][1]}	{keyname_key[S][1]}	-1		// {keyname_key[s][0]}, {keyname_key[S][0]}, <none>
-20	D		1	{keyname_key[d][1]}	{keyname_key[D][1]}	-1		// {keyname_key[d][0]}, {keyname_key[D][0]}, <none>
-21	F		1	{keyname_key[f][1]}	{keyname_key[F][1]}	-1		// {keyname_key[f][0]}, {keyname_key[F][0]}, <none>
-22	G		1	{keyname_key[g][1]}	{keyname_key[G][1]}	-1		// {keyname_key[g][0]}, {keyname_key[G][0]}, <none>
-23	H		1	{keyname_key[h][1]}	{keyname_key[H][1]}	-1		// {keyname_key[h][0]}, {keyname_key[H][0]}, <none>
-24	J		1	{keyname_key[j][1]}	{keyname_key[J][1]}	-1		// {keyname_key[j][0]}, {keyname_key[J][0]}, <none>
-25	K		1	{keyname_key[k][1]}	{keyname_key[K][1]}	-1		// {keyname_key[k][0]}, {keyname_key[K][0]}, <none>
-26	L		1	{keyname_key[l][1]}	{keyname_key[L][1]}	-1		// {keyname_key[l][0]}, {keyname_key[L][0]}, <none>
-27	OEM_1		0	{keyname_key[semicolon][1]}	{keyname_key[colon][1]}	-1		// {keyname_key[semicolon][0]}, {keyname_key[colon][0]}, <none>
-28	OEM_7		0	{keyname_key[apostrophe][1]}	{keyname_key[quote][1]}	-1		// {keyname_key[apostrophe][0]}, {keyname_key[quote][0]}, <none>
-29	OEM_3		0	{keyname_key[accent][1]}	{keyname_key[tilde][1]}	-1		// {keyname_key[accent][0]}, {keyname_key[tilde][0]}, <none>
-2b	OEM_5		0	{keyname_key[fslash][1]}	{keyname_key[vline][1]}	-1		// {keyname_key[fslash][0]}, {keyname_key[vline][0]}, <none>
-2c	Z		1	{keyname_key[z][1]}	{keyname_key[Z][1]}	-1		// {keyname_key[z][0]}, {keyname_key[Z][0]}, <none>
-2d	X		1	{keyname_key[x][1]}	{keyname_key[X][1]}	-1		// {keyname_key[x][0]}, {keyname_key[X][0]}, <none>
-2e	C		1	{keyname_key[c][1]}	{keyname_key[C][1]}	-1		// {keyname_key[c][0]}, {keyname_key[C][0]}, <none>
-2f	V		1	{keyname_key[v][1]}	{keyname_key[V][1]}	-1		// {keyname_key[v][0]}, {keyname_key[V][0]}, <none>
-30	B		1	{keyname_key[b][1]}	{keyname_key[B][1]}	-1		// {keyname_key[b][0]}, {keyname_key[B][0]}, <none>
-31	N		1	{keyname_key[n][1]}	{keyname_key[N][1]}	-1		// {keyname_key[n][0]}, {keyname_key[N][0]}, <none>
-32	M		1	{keyname_key[m][1]}	{keyname_key[M][1]}	-1		// {keyname_key[m][0]}, {keyname_key[M][0]}, <none>
-33	OEM_COMMA	0	{keyname_key[comma][1]}	{keyname_key[less][1]}	-1		// {keyname_key[comma][0]}, {keyname_key[less][0]}, <none>
-34	OEM_PERIOD	0	{keyname_key[period][1]}	{keyname_key[great][1]}	-1		// {keyname_key[period][0]}, {keyname_key[great][0]}, <none>
-35	OEM_2		0	{keyname_key[bslash][1]}	{keyname_key[question][1]}	-1		// {keyname_key[bslash][0]}, {keyname_key[question][0]}, <none>
+0c	OEM_MINUS	{cap_flag(minus)}	{keyname_key[minus][1]}	{keyname_key[underscore][1]}	-1		// {keyname_key[minus][0]}, {keyname_key[underscore][0]}, <none>
+0d	OEM_PLUS	{cap_flag(equals)}	{keyname_key[equals][1]}	{keyname_key[plus][1]}	-1		// {keyname_key[equals][0]}, {keyname_key[plus][0]}, <none>
+10	Q		{cap_flag(q)}	{keyname_key[q][1]}	{keyname_key[Q][1]}	-1		// {keyname_key[q][0]}, {keyname_key[Q][0]}, <none>
+11	W		{cap_flag(w)}	{keyname_key[w][1]}	{keyname_key[W][1]}	-1		// {keyname_key[w][0]}, {keyname_key[W][0]}, <none>
+12	E		{cap_flag(e)}	{keyname_key[e][1]}	{keyname_key[E][1]}	-1		// {keyname_key[e][0]}, {keyname_key[E][0]}, <none>
+13	R		{cap_flag(r)}	{keyname_key[r][1]}	{keyname_key[R][1]}	-1		// {keyname_key[r][0]}, {keyname_key[R][0]}, <none>
+14	T		{cap_flag(t)}	{keyname_key[t][1]}	{keyname_key[T][1]}	-1		// {keyname_key[t][0]}, {keyname_key[T][0]}, <none>
+15	Y		{cap_flag(y)}	{keyname_key[y][1]}	{keyname_key[Y][1]}	-1		// {keyname_key[y][0]}, {keyname_key[Y][0]}, <none>
+16	U		{cap_flag(u)}	{keyname_key[u][1]}	{keyname_key[U][1]}	-1		// {keyname_key[u][0]}, {keyname_key[U][0]}, <none>
+17	I		{cap_flag(i)}	{keyname_key[i][1]}	{keyname_key[I][1]}	-1		// {keyname_key[i][0]}, {keyname_key[I][0]}, <none>
+18	O		{cap_flag(o)}	{keyname_key[o][1]}	{keyname_key[O][1]}	-1		// {keyname_key[o][0]}, {keyname_key[O][0]}, <none>
+19	P		{cap_flag(p)}	{keyname_key[p][1]}	{keyname_key[P][1]}	-1		// {keyname_key[p][0]}, {keyname_key[P][0]}, <none>
+1a	OEM_4		{cap_flag(lsquare)}	{keyname_key[lsquare][1]}	{keyname_key[lcurly][1]}	-1		// {keyname_key[lsquare][0]}, {keyname_key[lcurly][0]}, <none>
+1b	OEM_6		{cap_flag(rsquare)}	{keyname_key[rsquare][1]}	{keyname_key[rcurly][1]}	-1		// {keyname_key[rsquare][0]}, {keyname_key[rcurly][0]}, <none>
+1e	A		{cap_flag(a)}	{keyname_key[a][1]}	{keyname_key[A][1]}	-1		// {keyname_key[a][0]}, {keyname_key[A][0]}, <none>
+1f	S		{cap_flag(s)}	{keyname_key[s][1]}	{keyname_key[S][1]}	-1		// {keyname_key[s][0]}, {keyname_key[S][0]}, <none>
+20	D		{cap_flag(d)}	{keyname_key[d][1]}	{keyname_key[D][1]}	-1		// {keyname_key[d][0]}, {keyname_key[D][0]}, <none>
+21	F		{cap_flag(f)}	{keyname_key[f][1]}	{keyname_key[F][1]}	-1		// {keyname_key[f][0]}, {keyname_key[F][0]}, <none>
+22	G		{cap_flag(g)}	{keyname_key[g][1]}	{keyname_key[G][1]}	-1		// {keyname_key[g][0]}, {keyname_key[G][0]}, <none>
+23	H		{cap_flag(h)}	{keyname_key[h][1]}	{keyname_key[H][1]}	-1		// {keyname_key[h][0]}, {keyname_key[H][0]}, <none>
+24	J		{cap_flag(j)}	{keyname_key[j][1]}	{keyname_key[J][1]}	-1		// {keyname_key[j][0]}, {keyname_key[J][0]}, <none>
+25	K		{cap_flag(k)}	{keyname_key[k][1]}	{keyname_key[K][1]}	-1		// {keyname_key[k][0]}, {keyname_key[K][0]}, <none>
+26	L		{cap_flag(l)}	{keyname_key[l][1]}	{keyname_key[L][1]}	-1		// {keyname_key[l][0]}, {keyname_key[L][0]}, <none>
+27	OEM_1		{cap_flag(semicolon)}	{keyname_key[semicolon][1]}	{keyname_key[colon][1]}	-1		// {keyname_key[semicolon][0]}, {keyname_key[colon][0]}, <none>
+28	OEM_7		{cap_flag(apostrophe)}	{keyname_key[apostrophe][1]}	{keyname_key[quote][1]}	-1		// {keyname_key[apostrophe][0]}, {keyname_key[quote][0]}, <none>
+29	OEM_3		{cap_flag(accent)}	{keyname_key[accent][1]}	{keyname_key[tilde][1]}	-1		// {keyname_key[accent][0]}, {keyname_key[tilde][0]}, <none>
+2b	OEM_5		{cap_flag(fslash)}	{keyname_key[fslash][1]}	{keyname_key[vline][1]}	-1		// {keyname_key[fslash][0]}, {keyname_key[vline][0]}, <none>
+2c	Z		{cap_flag(z)}	{keyname_key[z][1]}	{keyname_key[Z][1]}	-1		// {keyname_key[z][0]}, {keyname_key[Z][0]}, <none>
+2d	X		{cap_flag(x)}	{keyname_key[x][1]}	{keyname_key[X][1]}	-1		// {keyname_key[x][0]}, {keyname_key[X][0]}, <none>
+2e	C		{cap_flag(c)}	{keyname_key[c][1]}	{keyname_key[C][1]}	-1		// {keyname_key[c][0]}, {keyname_key[C][0]}, <none>
+2f	V		{cap_flag(v)}	{keyname_key[v][1]}	{keyname_key[V][1]}	-1		// {keyname_key[v][0]}, {keyname_key[V][0]}, <none>
+30	B		{cap_flag(b)}	{keyname_key[b][1]}	{keyname_key[B][1]}	-1		// {keyname_key[b][0]}, {keyname_key[B][0]}, <none>
+31	N		{cap_flag(n)}	{keyname_key[n][1]}	{keyname_key[N][1]}	-1		// {keyname_key[n][0]}, {keyname_key[N][0]}, <none>
+32	M		{cap_flag(m)}	{keyname_key[m][1]}	{keyname_key[M][1]}	-1		// {keyname_key[m][0]}, {keyname_key[M][0]}, <none>
+33	OEM_COMMA	{cap_flag(comma)}	{keyname_key[comma][1]}	{keyname_key[less][1]}	-1		// {keyname_key[comma][0]}, {keyname_key[less][0]}, <none>
+34	OEM_PERIOD	{cap_flag(period)}	{keyname_key[period][1]}	{keyname_key[great][1]}	-1		// {keyname_key[period][0]}, {keyname_key[great][0]}, <none>
+35	OEM_2		{cap_flag(bslash)}	{keyname_key[bslash][1]}	{keyname_key[question][1]}	-1		// {keyname_key[bslash][0]}, {keyname_key[question][0]}, <none>
 39	SPACE		0	0020	0020	0020		// SPACE, SPACE, SPACE
 56	OEM_102	0	005c	007c	001c		// REVERSE SOLIDUS, VERTICAL LINE, INFORMATION SEPARATOR FOUR
 53	DECIMAL	0	002e	002e	-1		// FULL STOP, FULL STOP, 
@@ -659,11 +673,11 @@ def get_gen():
         indexes = []
         for file in files:
             file = str(file)
-            indexes.append(int(file[41:]))
+            indexes.append(int(file[(len(str(GENERATIONS_DIR))+4):]))
         indexes.sort()
 
         for path in files:
-            if int(str(path)[41:]) == indexes[-1]:
+            if int(str(path)[(len(str(GENERATIONS_DIR))+4):]) == indexes[-1]:
                 keybfiles = []
                 for keybfile in Path(path).iterdir():
                     keybfiles.append(keybfile)
@@ -688,7 +702,7 @@ def get_gen():
 def get_top_keybs():
     """
     Loads all keyboard .klc files from the top_keyboards/ folder and returns
-    their raw lines as a list of lists — same format as get_gen().
+    their raw lines as a list of lists - same format as get_gen().
     """
     gen = []
     files = []
@@ -859,43 +873,43 @@ LAYOUT		;an extra '@' at the end is a dead key
 09	8		0	{keyname_key[eight][1]}	{keyname_key[asterisk][1]}	-1		// {keyname_key[eight][0]}, {keyname_key[asterisk][0]}, <none>
 0a	9		0	{keyname_key[nine][1]}	{keyname_key[lparanthesis][1]}	-1		// {keyname_key[nine][0]}, {keyname_key[lparanthesis][0]}, <none>
 0b	0		0	{keyname_key[zero][1]}	{keyname_key[rparanthesis][1]}	-1		// {keyname_key[zero][0]}, {keyname_key[rparanthesis][0]}, <none>
-0c	OEM_MINUS	0	{keyname_key[minus][1]}	{keyname_key[underscore][1]}	-1		// {keyname_key[minus][0]}, {keyname_key[underscore][0]}, <none>
-0d	OEM_PLUS	0	{keyname_key[equals][1]}	{keyname_key[plus][1]}	-1		// {keyname_key[equals][0]}, {keyname_key[plus][0]}, <none>
-10	Q		1	{keyname_key[q][1]}	{keyname_key[Q][1]}	-1		// {keyname_key[q][0]}, {keyname_key[Q][0]}, <none>
-11	W		1	{keyname_key[w][1]}	{keyname_key[W][1]}	-1		// {keyname_key[w][0]}, {keyname_key[W][0]}, <none>
-12	E		1	{keyname_key[e][1]}	{keyname_key[E][1]}	-1		// {keyname_key[e][0]}, {keyname_key[E][0]}, <none>
-13	R		1	{keyname_key[r][1]}	{keyname_key[R][1]}	-1		// {keyname_key[r][0]}, {keyname_key[R][0]}, <none>
-14	T		1	{keyname_key[t][1]}	{keyname_key[T][1]}	-1		// {keyname_key[t][0]}, {keyname_key[T][0]}, <none>
-15	Y		1	{keyname_key[y][1]}	{keyname_key[Y][1]}	-1		// {keyname_key[y][0]}, {keyname_key[Y][0]}, <none>
-16	U		1	{keyname_key[u][1]}	{keyname_key[U][1]}	-1		// {keyname_key[u][0]}, {keyname_key[U][0]}, <none>
-17	I		1	{keyname_key[i][1]}	{keyname_key[I][1]}	-1		// {keyname_key[i][0]}, {keyname_key[I][0]}, <none>
-18	O		1	{keyname_key[o][1]}	{keyname_key[O][1]}	-1		// {keyname_key[o][0]}, {keyname_key[O][0]}, <none>
-19	P		1	{keyname_key[p][1]}	{keyname_key[P][1]}	-1		// {keyname_key[p][0]}, {keyname_key[P][0]}, <none>
-1a	OEM_4		0	{keyname_key[lsquare][1]}	{keyname_key[lcurly][1]}	-1		// {keyname_key[lsquare][0]}, {keyname_key[lcurly][0]}, <none>
-1b	OEM_6		0	{keyname_key[rsquare][1]}	{keyname_key[rcurly][1]}	-1		// {keyname_key[rsquare][0]}, {keyname_key[rcurly][0]}, <none>
-1e	A		1	{keyname_key[a][1]}	{keyname_key[A][1]}	-1		// {keyname_key[a][0]}, {keyname_key[A][0]}, <none>
-1f	S		1	{keyname_key[s][1]}	{keyname_key[S][1]}	-1		// {keyname_key[s][0]}, {keyname_key[S][0]}, <none>
-20	D		1	{keyname_key[d][1]}	{keyname_key[D][1]}	-1		// {keyname_key[d][0]}, {keyname_key[D][0]}, <none>
-21	F		1	{keyname_key[f][1]}	{keyname_key[F][1]}	-1		// {keyname_key[f][0]}, {keyname_key[F][0]}, <none>
-22	G		1	{keyname_key[g][1]}	{keyname_key[G][1]}	-1		// {keyname_key[g][0]}, {keyname_key[G][0]}, <none>
-23	H		1	{keyname_key[h][1]}	{keyname_key[H][1]}	-1		// {keyname_key[h][0]}, {keyname_key[H][0]}, <none>
-24	J		1	{keyname_key[j][1]}	{keyname_key[J][1]}	-1		// {keyname_key[j][0]}, {keyname_key[J][0]}, <none>
-25	K		1	{keyname_key[k][1]}	{keyname_key[K][1]}	-1		// {keyname_key[k][0]}, {keyname_key[K][0]}, <none>
-26	L		1	{keyname_key[l][1]}	{keyname_key[L][1]}	-1		// {keyname_key[l][0]}, {keyname_key[L][0]}, <none>
-27	OEM_1		0	{keyname_key[semicolon][1]}	{keyname_key[colon][1]}	-1		// {keyname_key[semicolon][0]}, {keyname_key[colon][0]}, <none>
-28	OEM_7		0	{keyname_key[apostrophe][1]}	{keyname_key[quote][1]}	-1		// {keyname_key[apostrophe][0]}, {keyname_key[quote][0]}, <none>
-29	OEM_3		0	{keyname_key[accent][1]}	{keyname_key[tilde][1]}	-1		// {keyname_key[accent][0]}, {keyname_key[tilde][0]}, <none>
-2b	OEM_5		0	{keyname_key[fslash][1]}	{keyname_key[vline][1]}	-1		// {keyname_key[fslash][0]}, {keyname_key[vline][0]}, <none>
-2c	Z		1	{keyname_key[z][1]}	{keyname_key[Z][1]}	-1		// {keyname_key[z][0]}, {keyname_key[Z][0]}, <none>
-2d	X		1	{keyname_key[x][1]}	{keyname_key[X][1]}	-1		// {keyname_key[x][0]}, {keyname_key[X][0]}, <none>
-2e	C		1	{keyname_key[c][1]}	{keyname_key[C][1]}	-1		// {keyname_key[c][0]}, {keyname_key[C][0]}, <none>
-2f	V		1	{keyname_key[v][1]}	{keyname_key[V][1]}	-1		// {keyname_key[v][0]}, {keyname_key[V][0]}, <none>
-30	B		1	{keyname_key[b][1]}	{keyname_key[B][1]}	-1		// {keyname_key[b][0]}, {keyname_key[B][0]}, <none>
-31	N		1	{keyname_key[n][1]}	{keyname_key[N][1]}	-1		// {keyname_key[n][0]}, {keyname_key[N][0]}, <none>
-32	M		1	{keyname_key[m][1]}	{keyname_key[M][1]}	-1		// {keyname_key[m][0]}, {keyname_key[M][0]}, <none>
-33	OEM_COMMA	0	{keyname_key[comma][1]}	{keyname_key[less][1]}	-1		// {keyname_key[comma][0]}, {keyname_key[less][0]}, <none>
-34	OEM_PERIOD	0	{keyname_key[period][1]}	{keyname_key[great][1]}	-1		// {keyname_key[period][0]}, {keyname_key[great][0]}, <none>
-35	OEM_2		0	{keyname_key[bslash][1]}	{keyname_key[question][1]}	-1		// {keyname_key[bslash][0]}, {keyname_key[question][0]}, <none>
+0c	OEM_MINUS	{cap_flag(minus)}	{keyname_key[minus][1]}	{keyname_key[underscore][1]}	-1		// {keyname_key[minus][0]}, {keyname_key[underscore][0]}, <none>
+0d	OEM_PLUS	{cap_flag(equals)}	{keyname_key[equals][1]}	{keyname_key[plus][1]}	-1		// {keyname_key[equals][0]}, {keyname_key[plus][0]}, <none>
+10	Q		{cap_flag(q)}	{keyname_key[q][1]}	{keyname_key[Q][1]}	-1		// {keyname_key[q][0]}, {keyname_key[Q][0]}, <none>
+11	W		{cap_flag(w)}	{keyname_key[w][1]}	{keyname_key[W][1]}	-1		// {keyname_key[w][0]}, {keyname_key[W][0]}, <none>
+12	E		{cap_flag(e)}	{keyname_key[e][1]}	{keyname_key[E][1]}	-1		// {keyname_key[e][0]}, {keyname_key[E][0]}, <none>
+13	R		{cap_flag(r)}	{keyname_key[r][1]}	{keyname_key[R][1]}	-1		// {keyname_key[r][0]}, {keyname_key[R][0]}, <none>
+14	T		{cap_flag(t)}	{keyname_key[t][1]}	{keyname_key[T][1]}	-1		// {keyname_key[t][0]}, {keyname_key[T][0]}, <none>
+15	Y		{cap_flag(y)}	{keyname_key[y][1]}	{keyname_key[Y][1]}	-1		// {keyname_key[y][0]}, {keyname_key[Y][0]}, <none>
+16	U		{cap_flag(u)}	{keyname_key[u][1]}	{keyname_key[U][1]}	-1		// {keyname_key[u][0]}, {keyname_key[U][0]}, <none>
+17	I		{cap_flag(i)}	{keyname_key[i][1]}	{keyname_key[I][1]}	-1		// {keyname_key[i][0]}, {keyname_key[I][0]}, <none>
+18	O		{cap_flag(o)}	{keyname_key[o][1]}	{keyname_key[O][1]}	-1		// {keyname_key[o][0]}, {keyname_key[O][0]}, <none>
+19	P		{cap_flag(p)}	{keyname_key[p][1]}	{keyname_key[P][1]}	-1		// {keyname_key[p][0]}, {keyname_key[P][0]}, <none>
+1a	OEM_4		{cap_flag(lsquare)}	{keyname_key[lsquare][1]}	{keyname_key[lcurly][1]}	-1		// {keyname_key[lsquare][0]}, {keyname_key[lcurly][0]}, <none>
+1b	OEM_6		{cap_flag(rsquare)}	{keyname_key[rsquare][1]}	{keyname_key[rcurly][1]}	-1		// {keyname_key[rsquare][0]}, {keyname_key[rcurly][0]}, <none>
+1e	A		{cap_flag(a)}	{keyname_key[a][1]}	{keyname_key[A][1]}	-1		// {keyname_key[a][0]}, {keyname_key[A][0]}, <none>
+1f	S		{cap_flag(s)}	{keyname_key[s][1]}	{keyname_key[S][1]}	-1		// {keyname_key[s][0]}, {keyname_key[S][0]}, <none>
+20	D		{cap_flag(d)}	{keyname_key[d][1]}	{keyname_key[D][1]}	-1		// {keyname_key[d][0]}, {keyname_key[D][0]}, <none>
+21	F		{cap_flag(f)}	{keyname_key[f][1]}	{keyname_key[F][1]}	-1		// {keyname_key[f][0]}, {keyname_key[F][0]}, <none>
+22	G		{cap_flag(g)}	{keyname_key[g][1]}	{keyname_key[G][1]}	-1		// {keyname_key[g][0]}, {keyname_key[G][0]}, <none>
+23	H		{cap_flag(h)}	{keyname_key[h][1]}	{keyname_key[H][1]}	-1		// {keyname_key[h][0]}, {keyname_key[H][0]}, <none>
+24	J		{cap_flag(j)}	{keyname_key[j][1]}	{keyname_key[J][1]}	-1		// {keyname_key[j][0]}, {keyname_key[J][0]}, <none>
+25	K		{cap_flag(k)}	{keyname_key[k][1]}	{keyname_key[K][1]}	-1		// {keyname_key[k][0]}, {keyname_key[K][0]}, <none>
+26	L		{cap_flag(l)}	{keyname_key[l][1]}	{keyname_key[L][1]}	-1		// {keyname_key[l][0]}, {keyname_key[L][0]}, <none>
+27	OEM_1		{cap_flag(semicolon)}	{keyname_key[semicolon][1]}	{keyname_key[colon][1]}	-1		// {keyname_key[semicolon][0]}, {keyname_key[colon][0]}, <none>
+28	OEM_7		{cap_flag(apostrophe)}	{keyname_key[apostrophe][1]}	{keyname_key[quote][1]}	-1		// {keyname_key[apostrophe][0]}, {keyname_key[quote][0]}, <none>
+29	OEM_3		{cap_flag(accent)}	{keyname_key[accent][1]}	{keyname_key[tilde][1]}	-1		// {keyname_key[accent][0]}, {keyname_key[tilde][0]}, <none>
+2b	OEM_5		{cap_flag(fslash)}	{keyname_key[fslash][1]}	{keyname_key[vline][1]}	-1		// {keyname_key[fslash][0]}, {keyname_key[vline][0]}, <none>
+2c	Z		{cap_flag(z)}	{keyname_key[z][1]}	{keyname_key[Z][1]}	-1		// {keyname_key[z][0]}, {keyname_key[Z][0]}, <none>
+2d	X		{cap_flag(x)}	{keyname_key[x][1]}	{keyname_key[X][1]}	-1		// {keyname_key[x][0]}, {keyname_key[X][0]}, <none>
+2e	C		{cap_flag(c)}	{keyname_key[c][1]}	{keyname_key[C][1]}	-1		// {keyname_key[c][0]}, {keyname_key[C][0]}, <none>
+2f	V		{cap_flag(v)}	{keyname_key[v][1]}	{keyname_key[V][1]}	-1		// {keyname_key[v][0]}, {keyname_key[V][0]}, <none>
+30	B		{cap_flag(b)}	{keyname_key[b][1]}	{keyname_key[B][1]}	-1		// {keyname_key[b][0]}, {keyname_key[B][0]}, <none>
+31	N		{cap_flag(n)}	{keyname_key[n][1]}	{keyname_key[N][1]}	-1		// {keyname_key[n][0]}, {keyname_key[N][0]}, <none>
+32	M		{cap_flag(m)}	{keyname_key[m][1]}	{keyname_key[M][1]}	-1		// {keyname_key[m][0]}, {keyname_key[M][0]}, <none>
+33	OEM_COMMA	{cap_flag(comma)}	{keyname_key[comma][1]}	{keyname_key[less][1]}	-1		// {keyname_key[comma][0]}, {keyname_key[less][0]}, <none>
+34	OEM_PERIOD	{cap_flag(period)}	{keyname_key[period][1]}	{keyname_key[great][1]}	-1		// {keyname_key[period][0]}, {keyname_key[great][0]}, <none>
+35	OEM_2		{cap_flag(bslash)}	{keyname_key[bslash][1]}	{keyname_key[question][1]}	-1		// {keyname_key[bslash][0]}, {keyname_key[question][0]}, <none>
 39	SPACE		0	0020	0020	0020		// SPACE, SPACE, SPACE
 56	OEM_102	0	005c	007c	001c		// REVERSE SOLIDUS, VERTICAL LINE, INFORMATION SEPARATOR FOUR
 53	DECIMAL	0	002e	002e	-1		// FULL STOP, FULL STOP, 
@@ -1037,5 +1051,5 @@ def trash():
     for generation in files:
         generation = f"{generation}"
         
-        if generation[-1] != "1" and generation[41:-1] != index:
+        if generation[-1] != "1" and generation[(len(str(GENERATIONS_DIR))+4):-1] != index:
             shutil.rmtree(generation)

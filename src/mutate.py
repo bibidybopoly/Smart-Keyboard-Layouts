@@ -27,7 +27,7 @@ def top5(gen):
                 top5.update({keyb:gen[keyb]})
             elif i == gen[keyb][0] and index == 1:
                 top5.update({keyb:gen[keyb]})
-            elif i == gen[keyb][0] and index == 3:
+            elif i == gen[keyb][0] and index == 2:
                 top5.update({keyb:gen[keyb]})
             elif i == gen[keyb][0] and index == 3:
                 top5.update({keyb:gen[keyb]})
@@ -396,7 +396,7 @@ def mutation2(keyb):
     """
     Swap mutation: randomly swaps two individual characters anywhere on the keyboard.
 
-    This is the smallest possible change — a single character exchange.
+    This is the smallest possible change - a single character exchange.
     It allows the algorithm to make fine-grained adjustments to a layout.
     """
     rows = ["row_1", "row_2", "row_3", "row_4"]
@@ -440,7 +440,7 @@ def mutation2(keyb):
 def mutation3(keyb):
     """
     Row swap mutation: swaps all the characters between two randomly chosen rows
-    (rows 2, 3, and 4 only — the letter rows).
+    (rows 2, 3, and 4 only - the letter rows).
 
     This is a large-scale change that can radically reorganize a layout.
     """
