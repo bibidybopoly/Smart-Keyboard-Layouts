@@ -19,7 +19,7 @@ import file_manager as manager
 # SAMPLE_TEXT_PATH points to sample_text.txt in the same folder as this script.
 SAMPLE_TEXT_PATH = Path(__file__).parent / "sample_text.txt"
 
-# Load the sample text once at startup so it doesn't need to be re-read every generation.
+# Load the sample text once at startup so it does not need to be re-read every generation.
 with open(SAMPLE_TEXT_PATH, 'r') as file:
     data = file.read()
 text = data.strip()
@@ -35,11 +35,11 @@ rm_pos = [0, 0]
 rr_pos = [0, 0]
 rp_pos = [0, 0]
 
-fitness = 0          # Accumulated travel distance for the current keyboard being scored.
-pinky_factor = 1.3   # Penalty multiplier for pinky fingers - highest, to discourage outer key use.
-ring_factor  = 1.1   # Penalty multiplier for ring fingers - moderate outer-finger penalty.
-hand = ""            # Tracks which hand typed the last character ("l" or "r").
-alternate_factor = 1 # Penalty added when the same hand is used consecutively.
+fitness         = 0    # Accumulated travel distance for the current keyboard being scored.
+pinky_factor    = 1.3  # Penalty multiplier for pinky fingers - highest, to discourage outer key use.
+ring_factor     = 1.1  # Penalty multiplier for ring fingers - moderate outer-finger penalty.
+hand            = ""   # Tracks which hand typed the last character ("l" or "r").
+alternate_factor = 1   # Penalty added when the same hand is used consecutively.
 
 
 def adjust(x, pos):
@@ -47,39 +47,38 @@ def adjust(x, pos):
     Simulates the natural tendency of fingers to drift back toward rest position.
 
     When one finger moves by distance x, all other fingers on the same hand shift
-    slightly back toward [0, 0] by the same distance (minus what they can cover).
+    slightly back toward [0, 0] by the same amount (or all the way if x is large enough).
     This models how real fingers pull each other when one extends far from the home row.
 
     The distance each finger actually travels during the adjustment is added to the
     fitness score, because returning to rest position is real finger movement.
     """
     global fitness
-    dist_to_origin = math.sqrt(pos[0]**2 + pos[1]**2)
-    if x >= dist_to_origin:
+    dist_to_origin = math.hypot(pos[0], pos[1])
+    if dist_to_origin == 0 or x >= dist_to_origin:
         fitness += dist_to_origin   # Finger travels all the way back to rest.
         pos = [0, 0]
     else:
         fitness += x                # Finger travels x units toward rest.
-        pos[0] = math.copysign((abs(pos[0]) - x * math.cos(math.atan(pos[1] / pos[0]))), pos[0])
-        pos[1] = math.copysign((abs(pos[1]) - x * math.sin(math.atan(pos[1] / pos[0]))), pos[1])
-
+        scale = 1.0 - x / dist_to_origin
+        pos = [pos[0] * scale, pos[1] * scale]
     return pos
 
 
 def lshift():
     """Simulates pressing Left Shift with the left pinky. Uses pinky_factor."""
     global fitness, lp_pos
-    dx = math.sqrt((-1 - lp_pos[0])**2 + (-1 - lp_pos[1])**2)
+    dx = math.hypot(-1 - lp_pos[0], -1 - lp_pos[1])
     lp_pos = [-0.5, -1]
-    fitness += dx*pinky_factor
+    fitness += dx * pinky_factor
 
 
 def rshift():
     """Simulates pressing Right Shift with the right pinky. Uses pinky_factor."""
     global fitness, rp_pos
-    dx = math.sqrt((3 - rp_pos[0])**2 + (-1 - rp_pos[1])**2)
+    dx = math.hypot(3 - rp_pos[0], -1 - rp_pos[1])
     rp_pos = [1.5, -1]
-    fitness += dx*pinky_factor
+    fitness += dx * pinky_factor
 
 
 def alternate(x):
@@ -90,8 +89,9 @@ def alternate(x):
     global hand, fitness
     if x == hand:
         fitness += alternate_factor
-    elif x != hand:
+    else:
         hand = x
+
 
 def lp_hit(x, y):
     """
@@ -101,9 +101,9 @@ def lp_hit(x, y):
     to further discourage use of the outermost finger.
     """
     global fitness, lp_pos, lr_pos, lm_pos, li_pos, ri_pos, rm_pos, rr_pos, rp_pos
-    dx = math.sqrt((x - lp_pos[0])**2 + (y - lp_pos[1])**2)
+    dx = math.hypot(x - lp_pos[0], y - lp_pos[1])
     lp_pos = [x, y]
-    fitness += dx*pinky_factor
+    fitness += dx * pinky_factor
 
     lr_pos = adjust(dx, lr_pos)
     lm_pos = adjust(dx, lm_pos)
@@ -113,12 +113,13 @@ def lp_hit(x, y):
     rr_pos = adjust(dx, rr_pos)
     rp_pos = adjust(dx, rp_pos)
 
+
 def lr_hit(x, y):
     """Moves the left ring finger to (x, y). Applies ring finger penalty (ring_factor)."""
     global fitness, lp_pos, lr_pos, lm_pos, li_pos, ri_pos, rm_pos, rr_pos, rp_pos
-    dx = math.sqrt((x - lr_pos[0])**2 + (y - lr_pos[1])**2)
+    dx = math.hypot(x - lr_pos[0], y - lr_pos[1])
     lr_pos = [x, y]
-    fitness += dx*ring_factor
+    fitness += dx * ring_factor
 
     lp_pos = adjust(dx, lp_pos)
     lm_pos = adjust(dx, lm_pos)
@@ -128,10 +129,11 @@ def lr_hit(x, y):
     rr_pos = adjust(dx, rr_pos)
     rp_pos = adjust(dx, rp_pos)
 
+
 def lm_hit(x, y):
     """Moves the left middle finger to (x, y). No outer finger penalty."""
     global fitness, lp_pos, lr_pos, lm_pos, li_pos, ri_pos, rm_pos, rr_pos, rp_pos
-    dx = math.sqrt((x - lm_pos[0])**2 + (y - lm_pos[1])**2)
+    dx = math.hypot(x - lm_pos[0], y - lm_pos[1])
     lm_pos = [x, y]
     fitness += dx
 
@@ -143,10 +145,11 @@ def lm_hit(x, y):
     rr_pos = adjust(dx, rr_pos)
     rp_pos = adjust(dx, rp_pos)
 
+
 def li_hit(x, y):
     """Moves the left index finger to (x, y). No outer finger penalty."""
     global fitness, lp_pos, lr_pos, lm_pos, li_pos, ri_pos, rm_pos, rr_pos, rp_pos
-    dx = math.sqrt((x - li_pos[0])**2 + (y - li_pos[1])**2)
+    dx = math.hypot(x - li_pos[0], y - li_pos[1])
     li_pos = [x, y]
     fitness += dx
 
@@ -158,10 +161,11 @@ def li_hit(x, y):
     rr_pos = adjust(dx, rr_pos)
     rp_pos = adjust(dx, rp_pos)
 
+
 def ri_hit(x, y):
     """Moves the right index finger to (x, y). No outer finger penalty."""
     global fitness, lp_pos, lr_pos, lm_pos, li_pos, ri_pos, rm_pos, rr_pos, rp_pos
-    dx = math.sqrt((x - ri_pos[0])**2 + (y - ri_pos[1])**2)
+    dx = math.hypot(x - ri_pos[0], y - ri_pos[1])
     ri_pos = [x, y]
     fitness += dx
 
@@ -173,10 +177,11 @@ def ri_hit(x, y):
     rr_pos = adjust(dx, rr_pos)
     rp_pos = adjust(dx, rp_pos)
 
+
 def rm_hit(x, y):
     """Moves the right middle finger to (x, y). No outer finger penalty."""
     global fitness, lp_pos, lr_pos, lm_pos, li_pos, ri_pos, rm_pos, rr_pos, rp_pos
-    dx = math.sqrt((x - rm_pos[0])**2 + (y - rm_pos[1])**2)
+    dx = math.hypot(x - rm_pos[0], y - rm_pos[1])
     rm_pos = [x, y]
     fitness += dx
 
@@ -188,12 +193,13 @@ def rm_hit(x, y):
     rr_pos = adjust(dx, rr_pos)
     rp_pos = adjust(dx, rp_pos)
 
+
 def rr_hit(x, y):
     """Moves the right ring finger to (x, y). Applies ring finger penalty (ring_factor)."""
     global fitness, lp_pos, lr_pos, lm_pos, li_pos, ri_pos, rm_pos, rr_pos, rp_pos
-    dx = math.sqrt((x - rr_pos[0])**2 + (y - rr_pos[1])**2)
+    dx = math.hypot(x - rr_pos[0], y - rr_pos[1])
     rr_pos = [x, y]
-    fitness += dx*ring_factor
+    fitness += dx * ring_factor
 
     lr_pos = adjust(dx, lr_pos)
     lm_pos = adjust(dx, lm_pos)
@@ -203,12 +209,13 @@ def rr_hit(x, y):
     lp_pos = adjust(dx, lp_pos)
     rp_pos = adjust(dx, rp_pos)
 
+
 def rp_hit(x, y):
     """Moves the right pinky to (x, y). Applies pinky finger penalty (pinky_factor)."""
     global fitness, lp_pos, lr_pos, lm_pos, li_pos, ri_pos, rm_pos, rr_pos, rp_pos
-    dx = math.sqrt((x - rp_pos[0])**2 + (y - rp_pos[1])**2)
+    dx = math.hypot(x - rp_pos[0], y - rp_pos[1])
     rp_pos = [x, y]
-    fitness += dx*pinky_factor
+    fitness += dx * pinky_factor
 
     lr_pos = adjust(dx, lr_pos)
     lm_pos = adjust(dx, lm_pos)
@@ -219,436 +226,128 @@ def rp_hit(x, y):
     lp_pos = adjust(dx, lp_pos)
 
 
+# Static table mapping each physical key position (row, key) to the finger function that
+# presses it, its coordinate on the grid, and which hand it belongs to.
+# This is board-independent - it reflects the physical keyboard geometry, not the layout.
+# Built once at module load so generate_fitness() can use it without rebuilding each time.
+KEY_LAYOUT = (
+    # row         key    hit_fn   x       y    hand
+    ("row_1",  "`",   lp_hit, -1.75,   2,   "l"),
+    ("row_1",  "1",   lp_hit, -0.75,   2,   "l"),
+    ("row_2",  "q",   lp_hit, -0.25,   1,   "l"),
+    ("row_3",  "a",   lp_hit,  0,      0,   "l"),
+    ("row_4",  "z",   lp_hit,  0.5,   -1,   "l"),
+
+    ("row_1",  "2",   lr_hit, -0.75,   2,   "l"),
+    ("row_2",  "w",   lr_hit, -0.25,   1,   "l"),
+    ("row_3",  "s",   lr_hit,  0,      0,   "l"),
+    ("row_4",  "x",   lr_hit,  0.5,   -1,   "l"),
+
+    ("row_1",  "3",   lm_hit, -0.75,   2,   "l"),
+    ("row_2",  "e",   lm_hit, -0.25,   1,   "l"),
+    ("row_3",  "d",   lm_hit,  0,      0,   "l"),
+    ("row_4",  "c",   lm_hit,  0.5,   -1,   "l"),
+
+    ("row_1",  "4",   li_hit, -0.75,   2,   "l"),
+    ("row_2",  "r",   li_hit, -0.25,   1,   "l"),
+    ("row_3",  "f",   li_hit,  0,      0,   "l"),
+    ("row_4",  "v",   li_hit,  0.5,   -1,   "l"),
+    ("row_1",  "5",   li_hit,  0.25,   2,   "l"),
+    ("row_2",  "t",   li_hit,  0.75,   1,   "l"),
+    ("row_3",  "g",   li_hit,  1,      0,   "l"),
+    ("row_4",  "b",   li_hit,  1.5,   -1,   "l"),
+
+    ("row_1",  "6",   ri_hit, -1.75,   2,   "r"),
+    ("row_2",  "y",   ri_hit, -1.25,   1,   "r"),
+    ("row_3",  "h",   ri_hit, -1,      0,   "r"),
+    ("row_4",  "n",   ri_hit, -0.5,   -1,   "r"),
+    ("row_1",  "7",   ri_hit, -0.75,   2,   "r"),
+    ("row_2",  "u",   ri_hit, -0.25,   1,   "r"),
+    ("row_3",  "j",   ri_hit,  0,      0,   "r"),
+    ("row_4",  "m",   ri_hit,  0.5,   -1,   "r"),
+
+    ("row_1",  "8",   rm_hit, -0.75,   2,   "r"),
+    ("row_2",  "i",   rm_hit, -0.25,   1,   "r"),
+    ("row_3",  "k",   rm_hit,  0,      0,   "r"),
+    ("row_4",  ",",   rm_hit,  0.5,   -1,   "r"),
+
+    ("row_1",  "9",   rr_hit, -0.75,   2,   "r"),
+    ("row_2",  "o",   rr_hit, -0.25,   1,   "r"),
+    ("row_3",  "l",   rr_hit,  0,      0,   "r"),
+    ("row_4",  ".",   rr_hit,  0.5,   -1,   "r"),
+
+    ("row_1",  "0",   rp_hit, -0.75,   2,   "r"),
+    ("row_2",  "p",   rp_hit, -0.25,   1,   "r"),
+    ("row_3",  ";",   rp_hit,  0,      0,   "r"),
+    ("row_4",  "/",   rp_hit,  0.5,   -1,   "r"),
+    ("row_1",  "-",   rp_hit,  0.25,   2,   "r"),
+    ("row_2",  "[",   rp_hit,  0.75,   1,   "r"),
+    ("row_3",  "'",   rp_hit,  1,      0,   "r"),
+    ("row_1",  "=",   rp_hit,  1.25,   2,   "r"),
+    ("row_2",  "]",   rp_hit,  1.75,   1,   "r"),
+    ("row_2",  "\\",  rp_hit,  2.75,   1,   "r"),
+)
+
+
 def generate_fitness(keybs):
     """
     Scores every keyboard in the given dictionary by simulating typing the sample text.
 
-    For each keyboard, this function:
-      1. Extracts every key's assigned character(s) from the layout dictionary.
-      2. Iterates through every character in the sample text.
-      3. Calls the appropriate finger hit function for whichever key produces that character.
-      4. Accumulates the total finger travel distance as the fitness score.
-      5. Stores the final score back into the keyboard entry and logs it to disk.
+    For each keyboard:
+      1. All finger positions and state are reset so each keyboard is scored fairly.
+      2. A character-to-action lookup dict is built from the layout and KEY_LAYOUT table.
+      3. Every character in the sample text is looked up in the dict in O(1) time.
+      4. The total finger travel distance is accumulated as the fitness score.
+      5. The final score is stored back into the keyboard entry and logged to disk.
 
     A lower score is better - it means less finger movement to type the same text.
-
-    Returns a copy of the keyboard dictionary with updated fitness scores.
+    Returns the keyboard dictionary with updated fitness scores.
     """
-    global fitness, text
+    global fitness, hand, lp_pos, lr_pos, lm_pos, li_pos, ri_pos, rm_pos, rr_pos, rp_pos
     keyboards = {}
+
     for keyb in keybs:
         board = keybs[keyb]
+
+        # Reset all finger positions and state for each new keyboard.
         fitness = 0
+        hand    = ""
+        lp_pos  = [0, 0]
+        lr_pos  = [0, 0]
+        lm_pos  = [0, 0]
+        li_pos  = [0, 0]
+        ri_pos  = [0, 0]
+        rm_pos  = [0, 0]
+        rr_pos  = [0, 0]
+        rp_pos  = [0, 0]
 
-        # --- Extract the character(s) assigned to each key position ---
-        # Each entry is [lowercase_char, uppercase_char] from the layout.
-        # Keys are grouped by which physical finger presses them on a standard keyboard.
+        # Build a character -> (hit_fn, x, y, hand_side, shift_fn) lookup for this layout.
+        # shift_fn is None for lowercase characters and the opposing hand's shift for uppercase.
+        key_map = {}
+        r = board[1]
+        for row, key, hit_fn, x, y, hand_side in KEY_LAYOUT:
+            shift_fn = rshift if hand_side == "l" else lshift
+            key_map[r[row][key][0]] = (hit_fn, x, y, hand_side, None)
+            key_map[r[row][key][1]] = (hit_fn, x, y, hand_side, shift_fn)
 
-        # Left pinky keys
-        lp1 = [board[1]["row_1"]["`"][0], board[1]["row_1"]["`"][1]]
-        lp2 = [board[1]["row_1"]["1"][0], board[1]["row_1"]["1"][1]]
-        lp3 = [board[1]["row_2"]["q"][0], board[1]["row_2"]["q"][1]]
-        lp4 = [board[1]["row_3"]["a"][0], board[1]["row_3"]["a"][1]]
-        lp5 = [board[1]["row_4"]["z"][0], board[1]["row_4"]["z"][1]]
-
-        lr1 = [board[1]["row_1"]["2"][0], board[1]["row_1"]["2"][1]]
-        lr2 = [board[1]["row_2"]["w"][0], board[1]["row_2"]["w"][1]]
-        lr3 = [board[1]["row_3"]["s"][0], board[1]["row_3"]["s"][1]]
-        lr4 = [board[1]["row_4"]["x"][0], board[1]["row_4"]["x"][1]]
-
-        lm1 = [board[1]["row_1"]["3"][0], board[1]["row_1"]["3"][1]]
-        lm2 = [board[1]["row_2"]["e"][0], board[1]["row_2"]["e"][1]]
-        lm3 = [board[1]["row_3"]["d"][0], board[1]["row_3"]["d"][1]]
-        lm4 = [board[1]["row_4"]["c"][0], board[1]["row_4"]["c"][1]]
-
-        li1 = [board[1]["row_1"]["4"][0], board[1]["row_1"]["4"][1]]
-        li2 = [board[1]["row_2"]["r"][0], board[1]["row_2"]["r"][1]]
-        li3 = [board[1]["row_3"]["f"][0], board[1]["row_3"]["f"][1]]
-        li4 = [board[1]["row_4"]["v"][0], board[1]["row_4"]["v"][1]]
-        li5 = [board[1]["row_1"]["5"][0], board[1]["row_1"]["5"][1]]
-        li6 = [board[1]["row_2"]["t"][0], board[1]["row_2"]["t"][1]]
-        li7 = [board[1]["row_3"]["g"][0], board[1]["row_3"]["g"][1]]
-        li8 = [board[1]["row_4"]["b"][0], board[1]["row_4"]["b"][1]]
-
-        ri1 = [board[1]["row_1"]["6"][0], board[1]["row_1"]["6"][1]]
-        ri2 = [board[1]["row_2"]["y"][0], board[1]["row_2"]["y"][1]]
-        ri3 = [board[1]["row_3"]["h"][0], board[1]["row_3"]["h"][1]]
-        ri4 = [board[1]["row_4"]["n"][0], board[1]["row_4"]["n"][1]]
-        ri5 = [board[1]["row_1"]["7"][0], board[1]["row_1"]["7"][1]]
-        ri6 = [board[1]["row_2"]["u"][0], board[1]["row_2"]["u"][1]]
-        ri7 = [board[1]["row_3"]["j"][0], board[1]["row_3"]["j"][1]]
-        ri8 = [board[1]["row_4"]["m"][0], board[1]["row_4"]["m"][1]]
-
-        rm1 = [board[1]["row_1"]["8"][0], board[1]["row_1"]["8"][1]]
-        rm2 = [board[1]["row_2"]["i"][0], board[1]["row_2"]["i"][1]]
-        rm3 = [board[1]["row_3"]["k"][0], board[1]["row_3"]["k"][1]]
-        rm4 = [board[1]["row_4"][","][0], board[1]["row_4"][","][1]]
-
-        rr1 = [board[1]["row_1"]["9"][0], board[1]["row_1"]["9"][1]]
-        rr2 = [board[1]["row_2"]["o"][0], board[1]["row_2"]["o"][1]]
-        rr3 = [board[1]["row_3"]["l"][0], board[1]["row_3"]["l"][1]]
-        rr4 = [board[1]["row_4"]["."][0], board[1]["row_4"]["."][1]]
-
-        rp1 = [board[1]["row_1"]["0"][0], board[1]["row_1"]["0"][1]]
-        rp2 = [board[1]["row_2"]["p"][0], board[1]["row_2"]["p"][1]]
-        rp3 = [board[1]["row_3"][";"][0], board[1]["row_3"][";"][1]]
-        rp4 = [board[1]["row_4"]["/"][0], board[1]["row_4"]["/"][1]]
-        rp5 = [board[1]["row_1"]["-"][0], board[1]["row_1"]["-"][1]]
-        rp6 = [board[1]["row_2"]["["][0], board[1]["row_2"]["["][1]]
-        rp7 = [board[1]["row_3"]["'"][0], board[1]["row_3"]["'"][1]]
-        rp8 = [board[1]["row_1"]["="][0], board[1]["row_1"]["="][1]]
-        rp9 = [board[1]["row_2"]["]"][0], board[1]["row_2"]["]"][1]]
-        rp10 = [board[1]["row_2"]["\\"][0], board[1]["row_2"]["\\"][1]]
-
-        # --- Simulate typing the sample text ---
-        # For each character, find which key produces it and call that finger's hit function.
-        # Uppercase characters require a shift key press on the opposite hand.
+        # Simulate typing the sample text using the lookup dict.
         for char in text:
-            if char == lp1[0]:
-                alternate("l")
-                lp_hit(-1.75, 2)
-            elif char == lp1[1]:
-                alternate("l")
-                lp_hit(-1.75, 2)
-                rshift()
-            elif char == lp2[0]:
-                alternate("l")
-                lp_hit(-0.75, 2)
-            elif char == lp2[1]:
-                alternate("l")
-                lp_hit(-0.75, 2)
-                rshift()
-            elif char == lp3[0]:
-                alternate("l")
-                lp_hit(-0.25, 1)
-            elif char == lp3[1]:
-                alternate("l")
-                lp_hit(-0.25, 1)
-                rshift()
-            elif char == lp4[0]:
-                alternate("l")
-                lp_hit(0, 0)
-            elif char == lp4[1]:
-                alternate("l")
-                lp_hit(0, 0)
-                rshift()
-            elif char == lp5[0]:
-                alternate("l")
-                lp_hit(0.5, -1)
-            elif char == lp5[1]:
-                alternate("l")
-                lp_hit(0.5, -1)
-                rshift()
+            if char in key_map:
+                hit_fn, x, y, hand_side, shift_fn = key_map[char]
+                alternate(hand_side)
+                hit_fn(x, y)
+                if shift_fn is not None:
+                    shift_fn()
 
-            elif char == lr1[0]:
-                alternate("l")
-                lr_hit(-0.75, 2)
-            elif char == lr1[1]:
-                alternate("l")
-                lr_hit(-0.75, 2)
-                rshift()
-            elif char == lr2[0]:
-                alternate("l")
-                lr_hit(-0.25, 1)
-            elif char == lr2[1]:
-                alternate("l")
-                lr_hit(-0.25, 1)
-                rshift()
-            elif char == lr3[0]:
-                alternate("l")
-                lr_hit(0, 0)
-            elif char == lr3[1]:
-                alternate("l")
-                lr_hit(0, 0)
-                rshift()
-            elif char == lr4[0]:
-                alternate("l")
-                lr_hit(0.5, -1)
-            elif char == lr4[1]:
-                alternate("l")
-                lr_hit(0.5, -1)
-                rshift()
-
-            elif char == lm1[0]:
-                alternate("l")
-                lm_hit(-0.75, 2)
-            elif char == lm1[1]:
-                alternate("l")
-                lm_hit(-0.75, 2)
-                rshift()
-            elif char == lm2[0]:
-                alternate("l")
-                lm_hit(-0.25, 1)
-            elif char == lm2[1]:
-                alternate("l")
-                lm_hit(-0.25, 1)
-                rshift()
-            elif char == lm3[0]:
-                alternate("l")
-                lm_hit(0, 0)
-            elif char == lm3[1]:
-                alternate("l")
-                lm_hit(0, 0)
-                rshift()
-            elif char == lm4[0]:
-                alternate("l")
-                lm_hit(0.5, -1)
-            elif char == lm4[1]:
-                alternate("l")
-                lm_hit(0.5, -1)
-                rshift()
-
-            elif char == li1[0]:
-                alternate("l")
-                li_hit(-0.75, 2)
-            elif char == li1[1]:
-                alternate("l")
-                li_hit(-0.75, 2)
-                rshift()
-            elif char == li2[0]:
-                alternate("l")
-                li_hit(-0.25, 1)
-            elif char == li2[1]:
-                alternate("l")
-                li_hit(-0.25, 1)
-                rshift()
-            elif char == li3[0]:
-                alternate("l")
-                li_hit(0, 0)
-            elif char == li3[1]:
-                alternate("l")
-                li_hit(0, 0)
-                rshift()
-            elif char == li4[0]:
-                alternate("l")
-                li_hit(0.5, -1)
-            elif char == li4[1]:
-                alternate("l")
-                li_hit(0.5, -1)
-                rshift()
-            elif char == li5[0]:
-                alternate("l")
-                li_hit(0.25, 2)
-            elif char == li5[1]:
-                alternate("l")
-                li_hit(0.25, 2)
-                rshift()
-            elif char == li6[0]:
-                alternate("l")
-                li_hit(0.75, 1)
-            elif char == li6[1]:
-                alternate("l")
-                li_hit(0.75, 1)
-                rshift()
-            elif char == li7[0]:
-                alternate("l")
-                li_hit(1, 0)
-            elif char == li7[1]:
-                alternate("l")
-                li_hit(1, 0)
-                rshift()
-            elif char == li8[0]:
-                alternate("l")
-                li_hit(1.5, -1)
-            elif char == li8[1]:
-                alternate("l")
-                li_hit(1.5, -1)
-                rshift()
-
-            elif char == ri1[0]:
-                alternate("r")
-                ri_hit(-1.75, 2)
-            elif char == ri1[1]:
-                alternate("r")
-                ri_hit(-1.75, 2)
-                lshift()
-            elif char == ri2[0]:
-                alternate("r")
-                ri_hit(-1.25, 1)
-            elif char == ri2[1]:
-                alternate("r")
-                ri_hit(-1.25, 1)
-                lshift()
-            elif char == ri3[0]:
-                alternate("r")
-                ri_hit(-1, 0)
-            elif char == ri3[1]:
-                alternate("r")
-                ri_hit(-1, 0)
-                lshift()
-            elif char == ri4[0]:
-                alternate("r")
-                ri_hit(-0.5, -1)
-            elif char == ri4[1]:
-                alternate("r")
-                ri_hit(-0.5, -1)
-                lshift()
-            elif char == ri5[0]:
-                alternate("r")
-                ri_hit(-0.75, 2)
-            elif char == ri5[1]:
-                alternate("r")
-                ri_hit(-0.75, 2)
-                lshift()
-            elif char == ri6[0]:
-                alternate("r")
-                ri_hit(-0.25, 1)
-            elif char == ri6[1]:
-                alternate("r")
-                ri_hit(-0.25, 1)
-                lshift()
-            elif char == ri7[0]:
-                alternate("r")
-                ri_hit(0, 0)
-            elif char == ri7[1]:
-                alternate("r")
-                ri_hit(0, 0)
-                lshift()
-            elif char == ri8[0]:
-                alternate("r")
-                ri_hit(0.5, -1)
-            elif char == ri8[1]:
-                alternate("r")
-                ri_hit(0.5, -1)
-                lshift()
-
-            elif char == rm1[0]:
-                alternate("r")
-                rm_hit(-0.75, 2)
-            elif char == rm1[1]:
-                alternate("r")
-                rm_hit(-0.75, 2)
-                lshift()
-            elif char == rm2[0]:
-                alternate("r")
-                rm_hit(-0.25, 1)
-            elif char == rm2[1]:
-                alternate("r")
-                rm_hit(-0.25, 1)
-                lshift()
-            elif char == rm3[0]:
-                alternate("r")
-                rm_hit(0, 0)
-            elif char == rm3[1]:
-                alternate("r")
-                rm_hit(0, 0)
-                lshift()
-            elif char == rm4[0]:
-                alternate("r")
-                rm_hit(0.5, -1)
-            elif char == rm4[1]:
-                alternate("r")
-                rm_hit(0.5, -1)
-                lshift()
-
-            elif char == rr1[0]:
-                alternate("r")
-                rr_hit(-0.75, 2)
-            elif char == rr1[1]:
-                alternate("r")
-                rr_hit(-0.75, 2)
-                lshift()
-            elif char == rr2[0]:
-                alternate("r")
-                rr_hit(-0.25, 1)
-            elif char == rr2[1]:
-                alternate("r")
-                rr_hit(-0.25, 1)
-                lshift()
-            elif char == rr3[0]:
-                alternate("r")
-                rr_hit(0, 0)
-            elif char == rr3[1]:
-                alternate("r")
-                rr_hit(0, 0)
-                lshift()
-            elif char == rr4[0]:
-                alternate("r")
-                rr_hit(0.5, -1)
-            elif char == rr4[1]:
-                alternate("r")
-                rr_hit(0.5, -1)
-                lshift()
-
-            elif char == rp1[0]:
-                alternate("r")
-                rp_hit(-0.75, 2)
-            elif char == rp1[1]:
-                alternate("r")
-                rp_hit(-0.75, 2)
-                lshift()
-            elif char == rp2[0]:
-                alternate("r")
-                rp_hit(-0.25, 1)
-            elif char == rp2[1]:
-                alternate("r")
-                rp_hit(-0.25, 1)
-                lshift()
-            elif char == rp3[0]:
-                alternate("r")
-                rp_hit(0, 0)
-            elif char == rp3[1]:
-                alternate("r")
-                rp_hit(0, 0)
-                lshift()
-            elif char == rp4[0]:
-                alternate("r")
-                rp_hit(0.5, -1)
-            elif char == rp4[1]:
-                alternate("r")
-                rp_hit(0.5, -1)
-                lshift()
-            elif char == rp5[0]:
-                alternate("r")
-                rp_hit(0.25, 2)
-            elif char == rp5[1]:
-                alternate("r")
-                rp_hit(0.25, 2)
-                lshift()
-            elif char == rp6[0]:
-                alternate("r")
-                rp_hit(0.75, 1)
-            elif char == rp6[1]:
-                alternate("r")
-                rp_hit(0.75, 1)
-                lshift()
-            elif char == rp7[0]:
-                alternate("r")
-                rp_hit(1, 0)
-            elif char == rp7[1]:
-                alternate("r")
-                rp_hit(1, 0)
-                lshift()
-            elif char == rp8[0]:
-                alternate("r")
-                rp_hit(1.25, 2)
-            elif char == rp8[1]:
-                alternate("r")
-                rp_hit(1.25, 2)
-                lshift()
-            elif char == rp9[0]:
-                alternate("r")
-                rp_hit(1.75, 1)
-            elif char == rp9[1]:
-                alternate("r")
-                rp_hit(1.75, 1)
-                lshift()
-            elif char == rp10[0]:
-                alternate("r")
-                rp_hit(2.75, 1)
-            elif char == rp10[1]:
-                alternate("r")
-                rp_hit(2.75, 1)
-                lshift()
-        
-        # Round the score and store it back into the board entry, then log it.
+        # Round the score, store it back in the board entry, and log it.
         fitness = round(fitness)
         board[0] = fitness
         print(fitness)
-        keyboards.update({keyb:board})
+        keyboards[keyb] = board
         manager.appendscores(keyb, fitness)
 
     return keyboards
+
 
 def get_max(gen):
     """
@@ -657,14 +356,12 @@ def get_max(gen):
     Sorts all scores, then logs the best one, checks for an all-time high score,
     and updates the saved top keyboards list. Returns the best score.
     """
-    list = []
-    for keyb in gen:
-        list.append(gen[keyb][0])
-    list.sort()
-    manager.appendmax(list[0])
-    manager.update_high(gen, list[0])
-    manager.update_top_keybs(gen, list)
-    return list[0]
+    scores = [gen[keyb][0] for keyb in gen]
+    scores.sort()
+    manager.appendmax(scores[0])
+    manager.update_high(gen, scores[0])
+    manager.update_top_keybs(gen, scores)
+    return scores[0]
 
 
 def get_average(gen):
@@ -674,10 +371,7 @@ def get_average(gen):
     Logs the result to disk and returns it. Used to track whether the population
     is improving over time.
     """
-    total = 0
-    for keyb in gen:
-        total += gen[keyb][0]
-
+    total = sum(gen[keyb][0] for keyb in gen)
     average = round(total / 25)
     manager.appendaverage(average)
     return average

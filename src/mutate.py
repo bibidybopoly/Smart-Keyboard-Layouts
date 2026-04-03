@@ -14,27 +14,17 @@ def top5(gen):
     Returns the 5 best-scoring keyboards from the given generation.
     Lower scores are better (less finger travel distance).
     """
-    top5 = {}
-    list= []
-    for keyb in gen:
-        list.append(gen[keyb][0])
-    list.sort()
-    list = list[0:5]
+    scores = [gen[keyb][0] for keyb in gen]
+    scores.sort()
+    scores = scores[0:5]
 
-    for index, i in enumerate(list):
+    result = {}
+    for score in scores:
         for keyb in gen:
-            if i == gen[keyb][0] and index == 0:
-                top5.update({keyb:gen[keyb]})
-            elif i == gen[keyb][0] and index == 1:
-                top5.update({keyb:gen[keyb]})
-            elif i == gen[keyb][0] and index == 2:
-                top5.update({keyb:gen[keyb]})
-            elif i == gen[keyb][0] and index == 3:
-                top5.update({keyb:gen[keyb]})
-            elif i == gen[keyb][0] and index == 4:
-                top5.update({keyb:gen[keyb]})
+            if gen[keyb][0] == score:
+                result.update({keyb: gen[keyb]})
 
-    return top5
+    return result
 
 
 def correct(keyb):
@@ -526,9 +516,7 @@ def mutate(gen):
     keybs = pop_top
 
     new_gen = {}
-    keyb_list = []
-    for keyb in keybs:
-        keyb_list.append(keyb)
+    keyb_list = list(keybs.keys())
 
     # Apply a random mutation to each keyboard, twice over, to fill the new generation.
     for i in range(2):

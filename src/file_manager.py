@@ -62,25 +62,13 @@ def gen_name(keyb):
     """
     with open(CSV_ALL_KEYBOARDS, 'r') as file:
         data = file.read()
-    lines = []
-    line = ""
-    for char in data:
-        if char == "\n":
-            lines.append(line)
-            line = ""
-        else:
-            line += char
+    lines = data.splitlines()
 
     names = []
     for line in lines:
-        name = ""
-        index = 0
-        for char in line:
-            if index == 1 and char != "," and char != " ":
-                name += char
-            elif char == ",":
-                index += 1
-        names.append(name)
+        parts = line.split(',')
+        if len(parts) >= 2:
+            names.append(parts[1].strip())
     forbidden = ["&", "%", "*", "#", "$", "!", "'", "\"", "@", "+", "`", "=", "<", ">", "{", "}", ":", "/", "\\", "|", "?", ","]
 
     Q = keyb[1]["row_2"]["q"][0]
@@ -128,26 +116,12 @@ def get_index():
     """
     with open(CSV_ALL_GENS, 'r') as file:
         data = file.read()
-    lines = []
-    line = ""
-    for char in data:
-        if char == "\n":
-            lines.append(line)
-            line = ""
-        else:
-            line += char
+    lines = data.splitlines()
 
-    gen = ""
     if len(lines) == 0:
         return 0
 
-    for char in lines[-1]:
-        if char != ",":
-            gen += char
-        else:
-            break
-
-    return gen[3::]
+    return lines[-1].split(',')[0][3:]
 
 def appendmax(max):
     """
@@ -156,14 +130,7 @@ def appendmax(max):
     """
     with open(CSV_ALL_GENS, 'r') as file:
         data = file.read()
-    lines = []
-    line = ""
-    for char in data:
-        if char == "\n":
-            lines.append(line)
-            line = ""
-        else:
-            line += char
+    lines = data.splitlines()
 
     lines[-1] = lines[-1][:-1]
     lines[-1] += f"{max}"
@@ -179,27 +146,10 @@ def appendaverage(average):
     """
     with open(CSV_ALL_GENS, 'r') as file:
         data = file.read()
-    lines = []
-    line = ""
-    for char in data:
-        if char == "\n":
-            lines.append(line)
-            line = ""
-        else:
-            line += char
+    lines = data.splitlines()
 
-    gen = ""
-    max = ""
-    index = 0
-    for char in lines[-1]:
-        if index == 0 and char != ",":
-            gen += char
-        elif index == 2 and char != ",":
-            max += char
-        elif char == ",":
-            index += 1
-    
-    lines[-1] = gen + ", " + f"{average}," + max
+    parts = lines[-1].split(',', 2)
+    lines[-1] = f"{parts[0]}, {average},{parts[2]}"
 
     with open(CSV_ALL_GENS, 'w') as file:
         for line in lines:
@@ -213,14 +163,7 @@ def appendscores(keyb, fitness):
     """
     with open(CSV_ALL_KEYBOARDS, 'r') as file:
         data = file.read()
-    lines = []
-    line = ""
-    for char in data:
-        if char == "\n":
-            lines.append(line)
-            line = ""
-        else:
-            line += char
+    lines = data.splitlines()
 
     for i, line in enumerate(lines):
         if f" {keyb}," in line:
@@ -239,14 +182,7 @@ def appendscores(keyb, fitness):
         if keyb == str(path)[len(str(genpath))+1:-4]:
             with open(path, 'r') as keybfile:
                 keybdata = keybfile.read()
-            lines = []
-            line = ""
-            for char in keybdata:
-                if char == "\n":
-                    lines.append(line)
-                    line = ""
-                else:
-                    line += char
+            lines = keybdata.splitlines()
 
             lines[2] = f"COMPANY	\"{fitness}\""
 
@@ -264,26 +200,12 @@ def update_high(gen, high):
     """
     with open(CSV_HIGH_SCORES, 'r') as file:
         data = file.read()
-    lines = []
-    line = ""
-    for char in data:
-        if char == "\n":
-            lines.append(line)
-            line = ""
-        else:
-            line += char
-    record = ""
+    lines = data.splitlines()
 
     if len(lines) == 0:
-        record  = 9999999999999999
-
+        record = 9999999999999999
     else:
-        index = 0
-        for char in lines[-1]:
-            if index == 2 and char != " " and char != ",":
-                record += char
-            elif char == ",":
-                index += 1
+        record = lines[-1].split(',')[2].strip()
 
     gennum = get_index()
 
@@ -299,7 +221,7 @@ def update_high(gen, high):
             for line in lines:
                 file.write(line + "\n")
 
-def update_top_keybs(gen, list):
+def update_top_keybs(gen, scores):
     """
     Maintains the all-time top 5 best keyboard layouts in the top_keyboards/ folder.
 
@@ -312,7 +234,7 @@ def update_top_keybs(gen, list):
     for topkeyb in topgen:
         topfitnesses.append(int(topgen[topkeyb][0]))
 
-    fitnesses = topfitnesses + list
+    fitnesses = topfitnesses + scores
     fitnesses.sort()
     fitnesses = fitnesses[0:5]
 
@@ -323,22 +245,8 @@ def update_top_keybs(gen, list):
     for file in files:
         with open(file, 'r') as rfile:
             data = rfile.read()
-        lines = []
-        line = ""
-        for char in data:
-            if char == "\n":
-                lines.append(line)
-                line = ""
-            else:
-                line += char
-        
-        num = ""
-        cond = False
-        for char in lines[2]:
-            if cond and char != "\"":
-                num += char
-            elif char == "\"":
-                cond = not cond
+        lines = data.splitlines()
+        num = lines[2].split('"')[1]
         if not int(num) in fitnesses:
             os.remove(file)
 
@@ -629,23 +537,9 @@ ENDKBD
                 return 0
             with open(file, 'r') as rfile:
                 data = rfile.read()
-            lines = []
-            line = ""
-            for char in data:
-                if char == "\n":
-                    lines.append(line)
-                    line = ""
-                else:
-                    line += char
-            
-            num = ""
-            cond = False
-            for char in lines[2]:
-                if cond and char != "\"":
-                    num += char
-                elif char == "\"":
-                    cond = not cond
-            
+            lines = data.splitlines()
+            num = lines[2].split('"')[1]
+
             if int(num) == fitness:
                 os.remove(file)
                 removenum -= 1 
@@ -683,19 +577,9 @@ def get_gen():
                     keybfiles.append(keybfile)
 
         for path in keybfiles:
-            keyb = []
             with open(path, 'r') as datafile:
                 data = datafile.read()
-
-            line = ""
-            for char in data:
-                if char == "\n":
-                    keyb.append(line)
-                    line = ""
-                else:
-                    line += char
-
-            gen.append(keyb)
+            gen.append(data.splitlines())
 
         return gen
 
@@ -712,15 +596,7 @@ def get_top_keybs():
     for path in files:
         with open(path, 'r') as file:
             data = file.read()
-        keyb = []
-        line = ""
-        for char in data:
-            if char == "\n":
-                keyb.append(line)
-                line = ""
-            else:
-                line += char
-        gen.append(keyb)
+        gen.append(data.splitlines())
 
     return gen
 
@@ -1015,14 +891,7 @@ def cleanup():
     """
     with open(CSV_ALL_GENS, 'r') as file:
         data = file.read()
-    lines = []
-    line = ""
-    for char in data:
-        if char == "\n":
-            lines.append(line)
-            line = ""
-        else:
-            line += char
+    lines = data.splitlines()
 
     lines[-1] = f"Gen{get_index()}, -, -"
 
