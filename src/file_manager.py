@@ -13,8 +13,75 @@
 from pathlib import Path
 import populate as pop
 import os
+import time
 import shutil
 import initialize as initial
+
+# How many times to retry an atomic swap before giving up, and how long to wait
+# between attempts. Windows Search, antivirus, and cloud-sync clients can hold a
+# brief read handle on the target file, which causes os.replace() to fail with
+# PermissionError (WinError 5). Retrying with short backoff almost always wins.
+_REPLACE_RETRIES = 10
+_REPLACE_BACKOFF = 0.05  # seconds, doubles each retry up to ~5s total
+
+def _atomic_replace(tmp, path):
+    """
+    Replace `path` with `tmp` atomically, retrying through transient Windows
+    PermissionErrors caused by file-handle contention (indexer, AV, preview pane,
+    OneDrive, etc.). Raises the last error if every retry fails.
+    """
+    delay = _REPLACE_BACKOFF
+    last_err = None
+    for _ in range(_REPLACE_RETRIES):
+        try:
+            os.replace(tmp, path)
+            return
+        except PermissionError as e:
+            last_err = e
+            time.sleep(delay)
+            delay *= 2
+    # Every retry failed. Clean up the tmp file so it doesn't pile up, then raise.
+    try:
+        os.remove(tmp)
+    except OSError:
+        pass
+    raise last_err
+
+def _write_file(path, lines):
+    """
+    Writes a list of lines to a file using an atomic temp-file-and-rename strategy.
+
+    Why not just open(path, 'w')? On Windows, opening an existing file with 'w' mode
+    first truncates it to zero bytes, then writes the new content. After hundreds of
+    repeated cycles on the same file, Windows can return OSError [Errno 22] on that
+    truncation step -- especially on certain drive types or when background processes
+    (e.g. Windows Search) briefly touch the file between reads and writes.
+
+    The fix: write everything to a temporary file in the same folder first, then use
+    os.replace() to swap it over the original. os.replace() is a single atomic
+    filesystem operation -- it never leaves the target file empty or partially written,
+    and it doesn't trigger the same Windows file-handle issues that in-place truncation does.
+
+    The swap itself goes through _atomic_replace(), which retries a handful of times
+    to ride out transient PermissionErrors from Windows Search / antivirus / sync clients.
+    """
+    path = Path(path)
+    tmp = path.with_suffix(path.suffix + '.tmp')
+    with open(tmp, 'w', encoding='utf-8') as f:
+        for line in lines:
+            f.write(line + '\n')
+    _atomic_replace(tmp, path)
+
+def _write_string(path, content):
+    """
+    Same atomic write strategy as _write_file, but for a single pre-built string
+    (used when writing .klc file contents all at once rather than line by line).
+    """
+    path = Path(path)
+    tmp = path.with_suffix(path.suffix + '.tmp')
+    with open(tmp, 'w', encoding='utf-8') as f:
+        f.write(content)
+    _atomic_replace(tmp, path)
 
 # BASE_DIR points to the root Smart_Keyboard_layouts folder,
 # no matter where this project is saved on any computer.
@@ -25,6 +92,15 @@ CSV_ALL_GENS      = BASE_DIR / "data" / "Keyboard_All_Gens_CSV.txt"
 CSV_HIGH_SCORES   = BASE_DIR / "data" / "Keyboard_High_Scores_CSV.txt"
 GENERATIONS_DIR   = BASE_DIR / "generations"
 TOP_KEYBOARDS_DIR = BASE_DIR / "top_keyboards"
+
+# On a fresh install, the data folder and CSV files won't exist yet.
+# Create them now so every other function in this module can safely open them.
+(BASE_DIR / "data").mkdir(exist_ok=True)
+GENERATIONS_DIR.mkdir(exist_ok=True)
+TOP_KEYBOARDS_DIR.mkdir(exist_ok=True)
+for _csv in (CSV_ALL_KEYBOARDS, CSV_ALL_GENS, CSV_HIGH_SCORES):
+    if not _csv.exists():
+        _csv.touch()
 
 # Maps each typeable character to its Unicode name and hex code.
 # Used when writing .klc files, which require Unicode names rather than raw characters.
@@ -60,7 +136,7 @@ def gen_name(keyb):
 
     Returns the keyboard's name as a string.
     """
-    with open(CSV_ALL_KEYBOARDS, 'r') as file:
+    with open(CSV_ALL_KEYBOARDS, 'r', encoding='utf-8') as file:
         data = file.read()
     lines = data.splitlines()
 
@@ -104,7 +180,7 @@ def gen_name(keyb):
         keybname += f"_{num}"
         num += 1
 
-    with open(CSV_ALL_KEYBOARDS, 'a') as file:
+    with open(CSV_ALL_KEYBOARDS, 'a', encoding='utf-8') as file:
         file.write(f"Gen{int(get_index()) + 1}, {keybname}, -\n")
         
     return keybname
@@ -114,7 +190,7 @@ def get_index():
     Returns the current generation number by reading the last entry in the
     all-generations CSV. Returns 0 if no generations have been run yet.
     """
-    with open(CSV_ALL_GENS, 'r') as file:
+    with open(CSV_ALL_GENS, 'r', encoding='utf-8') as file:
         data = file.read()
     lines = data.splitlines()
 
@@ -128,32 +204,28 @@ def appendmax(max):
     Writes the best (lowest) fitness score of the current generation into the
     all-generations CSV. Called after all keyboards in a generation are scored.
     """
-    with open(CSV_ALL_GENS, 'r') as file:
+    with open(CSV_ALL_GENS, 'r', encoding='utf-8') as file:
         data = file.read()
     lines = data.splitlines()
 
     lines[-1] = lines[-1][:-1]
     lines[-1] += f"{max}"
 
-    with open(CSV_ALL_GENS, 'w') as file:
-        for line in lines:
-            file.write(line + "\n")
+    _write_file(CSV_ALL_GENS, lines)
 
 def appendaverage(average):
     """
     Writes the average fitness score of the current generation into the
     all-generations CSV alongside the best score already recorded there.
     """
-    with open(CSV_ALL_GENS, 'r') as file:
+    with open(CSV_ALL_GENS, 'r', encoding='utf-8') as file:
         data = file.read()
     lines = data.splitlines()
 
     parts = lines[-1].split(',', 2)
     lines[-1] = f"{parts[0]}, {average},{parts[2]}"
 
-    with open(CSV_ALL_GENS, 'w') as file:
-        for line in lines:
-            file.write(line + "\n")
+    _write_file(CSV_ALL_GENS, lines)
 
 def appendscores(keyb, fitness):
     """
@@ -161,34 +233,31 @@ def appendscores(keyb, fitness):
       1. The all-keyboards CSV (updates the placeholder '-' with the real score).
       2. The keyboard's own .klc file (stored in the COMPANY field for easy reading).
     """
-    with open(CSV_ALL_KEYBOARDS, 'r') as file:
+    with open(CSV_ALL_KEYBOARDS, 'r', encoding='utf-8') as file:
         data = file.read()
     lines = data.splitlines()
 
+    gen_index = get_index()  # Call once instead of once per matching line.
     for i, line in enumerate(lines):
         if f" {keyb}," in line:
-            lines[i] = f"Gen{get_index()}, {keyb}, {fitness}"
+            lines[i] = f"Gen{gen_index}, {keyb}, {fitness}"
 
-    with open(CSV_ALL_KEYBOARDS, 'w') as file:
-        for line in lines:
-            file.write(line + "\n")
+    _write_file(CSV_ALL_KEYBOARDS, lines)
 
     keybs = []
-    genpath = GENERATIONS_DIR / f"Gen{get_index()}"
+    genpath = GENERATIONS_DIR / f"Gen{gen_index}"
     for kb in Path(genpath).iterdir():
         keybs.append(kb)
 
     for path in keybs:
         if keyb == str(path)[len(str(genpath))+1:-4]:
-            with open(path, 'r') as keybfile:
+            with open(path, 'r', encoding='utf-8') as keybfile:
                 keybdata = keybfile.read()
             lines = keybdata.splitlines()
 
             lines[2] = f"COMPANY	\"{fitness}\""
 
-            with open(genpath / f"{keyb}.klc", 'w') as file:
-                for line in lines:
-                    file.write(line + "\n")
+            _write_file(genpath / f"{keyb}.klc", lines)
         
 
 
@@ -198,7 +267,7 @@ def update_high(gen, high):
     If so, appends the new record to the high-scores CSV along with the generation
     number and the name of the keyboard that achieved it.
     """
-    with open(CSV_HIGH_SCORES, 'r') as file:
+    with open(CSV_HIGH_SCORES, 'r', encoding='utf-8') as file:
         data = file.read()
     lines = data.splitlines()
 
@@ -217,9 +286,7 @@ def update_high(gen, high):
 
     if high < int(record):
         lines += [f"Gen{gennum}, {keybname}, {high}"]
-        with open(CSV_HIGH_SCORES, 'w') as file:
-            for line in lines:
-                file.write(line + "\n")
+        _write_file(CSV_HIGH_SCORES, lines)
 
 def update_top_keybs(gen, scores):
     """
@@ -243,7 +310,7 @@ def update_top_keybs(gen, scores):
         files.append(file)
 
     for file in files:
-        with open(file, 'r') as rfile:
+        with open(file, 'r', encoding='utf-8') as rfile:
             data = rfile.read()
         lines = data.splitlines()
         num = lines[2].split('"')[1]
@@ -510,10 +577,7 @@ LANGUAGENAMES
 0409	English (United States)
 ENDKBD
 """
-            with open(TOP_KEYBOARDS_DIR / f"{keyb}.klc", 'x') as keybfile:
-                pass
-            with open(TOP_KEYBOARDS_DIR / f"{keyb}.klc", 'w') as keybfile:
-                keybfile.write(file_contents)
+            _write_string(TOP_KEYBOARDS_DIR / f"{keyb}.klc", file_contents)
 
     
 
@@ -535,7 +599,7 @@ ENDKBD
         for file in files:
             if removenum == 0:
                 return 0
-            with open(file, 'r') as rfile:
+            with open(file, 'r', encoding='utf-8') as rfile:
                 data = rfile.read()
             lines = data.splitlines()
             num = lines[2].split('"')[1]
@@ -577,7 +641,7 @@ def get_gen():
                     keybfiles.append(keybfile)
 
         for path in keybfiles:
-            with open(path, 'r') as datafile:
+            with open(path, 'r', encoding='utf-8') as datafile:
                 data = datafile.read()
             gen.append(data.splitlines())
 
@@ -594,7 +658,7 @@ def get_top_keybs():
         files.append(file)
 
     for path in files:
-        with open(path, 'r') as file:
+        with open(path, 'r', encoding='utf-8') as file:
             data = file.read()
         gen.append(data.splitlines())
 
@@ -615,7 +679,7 @@ def new_gen(gen):
     path = GENERATIONS_DIR / gen_name
     os.mkdir(path)
 
-    with open(CSV_ALL_GENS, 'a') as file:
+    with open(CSV_ALL_GENS, 'a', encoding='utf-8') as file:
         file.write(f"{gen_name}, -, -\n")
     
     for keyb in gen:
@@ -877,10 +941,7 @@ LANGUAGENAMES
 0409	English (United States)
 ENDKBD
 """
-        with open(GENERATIONS_DIR / gen_name / f"{keyb}.klc", 'x') as file:
-            pass
-        with open(GENERATIONS_DIR / gen_name / f"{keyb}.klc", 'w') as file:
-            file.write(file_contents)
+        _write_string(GENERATIONS_DIR / gen_name / f"{keyb}.klc", file_contents)
 
 def cleanup():
     """
@@ -889,15 +950,13 @@ def cleanup():
     Resets the last CSV entry so the incomplete generation is not counted,
     keeping the data log consistent for the next run.
     """
-    with open(CSV_ALL_GENS, 'r') as file:
+    with open(CSV_ALL_GENS, 'r', encoding='utf-8') as file:
         data = file.read()
     lines = data.splitlines()
 
     lines[-1] = f"Gen{get_index()}, -, -"
 
-    with open(CSV_ALL_GENS, 'w') as file:
-        for line in lines:
-            file.write(line + "\n")
+    _write_file(CSV_ALL_GENS, lines)
 
 def trash():
     """

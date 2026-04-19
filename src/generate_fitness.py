@@ -64,7 +64,6 @@ def adjust(x, pos):
         pos = [pos[0] * scale, pos[1] * scale]
     return pos
 
-
 def lshift():
     """Simulates pressing Left Shift with the left pinky. Uses pinky_factor."""
     global fitness, lp_pos
