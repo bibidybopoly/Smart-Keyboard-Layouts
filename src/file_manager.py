@@ -50,20 +50,6 @@ def _atomic_replace(tmp, path):
 def _write_file(path, lines):
     """
     Writes a list of lines to a file using an atomic temp-file-and-rename strategy.
-
-    Why not just open(path, 'w')? On Windows, opening an existing file with 'w' mode
-    first truncates it to zero bytes, then writes the new content. After hundreds of
-    repeated cycles on the same file, Windows can return OSError [Errno 22] on that
-    truncation step -- especially on certain drive types or when background processes
-    (e.g. Windows Search) briefly touch the file between reads and writes.
-
-    The fix: write everything to a temporary file in the same folder first, then use
-    os.replace() to swap it over the original. os.replace() is a single atomic
-    filesystem operation -- it never leaves the target file empty or partially written,
-    and it doesn't trigger the same Windows file-handle issues that in-place truncation does.
-
-    The swap itself goes through _atomic_replace(), which retries a handful of times
-    to ride out transient PermissionErrors from Windows Search / antivirus / sync clients.
     """
     path = Path(path)
     tmp = path.with_suffix(path.suffix + '.tmp')
@@ -93,8 +79,6 @@ CSV_HIGH_SCORES   = BASE_DIR / "data" / "Keyboard_High_Scores_CSV.txt"
 GENERATIONS_DIR   = BASE_DIR / "generations"
 TOP_KEYBOARDS_DIR = BASE_DIR / "top_keyboards"
 
-# On a fresh install, the data folder and CSV files won't exist yet.
-# Create them now so every other function in this module can safely open them.
 (BASE_DIR / "data").mkdir(exist_ok=True)
 GENERATIONS_DIR.mkdir(exist_ok=True)
 TOP_KEYBOARDS_DIR.mkdir(exist_ok=True)
