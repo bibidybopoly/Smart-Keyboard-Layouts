@@ -6,6 +6,3 @@ __pycache__/
 # Generated keyboard data - these folders fill up during a run and are not source code
 generations/*
 !generations/.gitkeep
-
-# Claude personal workspace instructions - specific to this machine
-CLAUDE.md
